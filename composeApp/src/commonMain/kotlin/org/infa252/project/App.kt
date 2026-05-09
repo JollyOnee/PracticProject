@@ -23,34 +23,34 @@ import practicproject.composeapp.generated.resources.compose_multiplatform
 @Preview
 fun App() {
     AppTheme {
-        var showContent by remember { mutableStateOf(false) }
-        Column(
-            modifier = Modifier
-                .background(MaterialTheme.colorScheme.background)
-                .safeContentPadding()
-                .fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(
-                text = "MathSolver",
-                style = MaterialTheme.typography.headlineLarge,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Button(onClick = { showContent = !showContent }) {
-                Text("Click me!")
-            }
-            AnimatedVisibility(showContent) {
-                val greeting = remember { Greeting().greet() }
+        var screen by remember { mutableStateOf("home") }
+
+        when (screen) {
+            "home" -> {
                 Column(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .background(MaterialTheme.colorScheme.background)
+                        .safeContentPadding()
+                        .fillMaxSize(),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Image(painterResource(Res.drawable.compose_multiplatform), null)
                     Text(
-                        text = "Compose: $greeting",
-                        style = MaterialTheme.typography.bodyMedium
+                        text = "MathSolver",
+                        style = MaterialTheme.typography.headlineLarge,
+                        color = MaterialTheme.colorScheme.primary
                     )
+                    Button(onClick = { screen = "input" }) {
+                        Text("Перейти к калькулятору")
+                    }
                 }
+            }
+            "input" -> {
+                MathInputScreen(
+                    onBack = { screen = "home" },
+                    onSolve = { formula ->
+                        // Handle solve action
+                    }
+                )
             }
         }
     }

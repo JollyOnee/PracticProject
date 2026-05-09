@@ -68,10 +68,10 @@ private val typography = Typography(
         lineHeight = 20.sp,
     ),
     displayMedium = TextStyle(
-        fontFamily = FontFamily.Serif,
+        fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Normal,
-        fontSize = 24.sp,
-        lineHeight = 32.sp,
+        fontSize = 20.sp,
+        lineHeight = 28.sp,
     )
 )
 
