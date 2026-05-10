@@ -14,18 +14,22 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun App() {
-
+    // Состояние навигации
     var currentScreen by remember { mutableStateOf("start") }
 
-
+    // Цвета (дублируем основные, чтобы UI был консистентным)
     val darkGreenBg = Color(0xFF161D15)
     val lightGreenBg = Color(0xFFF4FCED)
     val accentGreen = Color(0xFF006E1C)
 
+    // Инициализация архитектурных слоев (MVVM)
+    // Используем remember, чтобы объекты не пересоздавались при каждом обновлении экрана
+    val repository = remember { MathRepository() }
+    val viewModel = remember { MathViewModel(repository) }
+
     MaterialTheme {
         when (currentScreen) {
             "start" -> {
-
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -36,7 +40,6 @@ fun App() {
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-
                         Text(
                             text = "MathSolver",
                             fontSize = 48.sp,
@@ -45,7 +48,6 @@ fun App() {
                             modifier = Modifier.padding(bottom = 32.dp)
                         )
 
-                        // Кнопка начать
                         Button(
                             onClick = { currentScreen = "input" },
                             modifier = Modifier
@@ -65,16 +67,12 @@ fun App() {
                 }
             }
             "input" -> {
+                // ПЕРЕДАЕМ ViewModel вместо старого onSolve
                 MathInputScreen(
-                    onBack = { currentScreen = "start" },
-                    onSolve = { formula ->
-
-                        println("Formula to solve: $formula")
-                    }
+                    viewModel = viewModel,
+                    onBack = { currentScreen = "start" }
                 )
             }
-
-
         }
     }
 }

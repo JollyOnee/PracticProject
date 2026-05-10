@@ -17,8 +17,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.hrm.latex.renderer.Latex
 import com.hrm.latex.renderer.model.LatexConfig
-import kotlinx.coroutines.delay
 
+// --- ЦВЕТОВАЯ ПАЛИТРА (Добавлена сюда, чтобы не было ошибок) ---
 val darkGreenBg = Color(0xFF161D15)
 val lightGreenBg = Color(0xFFF4FCED)
 val accentGreen = Color(0xFF006E1C)
@@ -27,46 +27,25 @@ val secondaryText = Color(0xFF6D7B69)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MathInputScreen(
-    onBack: () -> Unit,
-    onSolve: (String) -> Unit
+    viewModel: MathViewModel,
+    onBack: () -> Unit
 ) {
-    var formula by remember { mutableStateOf("") }
-    var cursorIndex by remember { mutableIntStateOf(0) }
-    var currentTab by remember { mutableStateOf("±") }
-
     val hScrollState = rememberScrollState()
     val mainScrollState = rememberScrollState()
 
-    val visualFormula = remember(formula, cursorIndex) {
-        val safeIndex = cursorIndex.coerceIn(0, formula.length)
-        val withCursor = if (formula.isEmpty()) "|"
-        else StringBuilder(formula).insert(safeIndex, "|").toString()
+    // Визуализация формулы с курсором
+    val visualFormula = remember(viewModel.formula, viewModel.cursorIndex) {
+        val safeIndex = viewModel.cursorIndex.coerceIn(0, viewModel.formula.length)
+        val withCursor = if (viewModel.formula.isEmpty()) "|"
+        else StringBuilder(viewModel.formula).insert(safeIndex, "|").toString()
         withCursor.replace("%", "\\%")
     }
 
-    LaunchedEffect(formula, cursorIndex) {
-        delay(15)
-        hScrollState.scrollTo(hScrollState.maxValue)
-    }
-
-    val dynamicFontSize = remember(formula) {
-        when {
-            formula.length < 15 -> 36.sp
-            formula.length < 45 -> 28.sp
-            else -> 20.sp
-        }
-    }
-
-    fun insert(symbol: String) {
-        if (formula.length >= 300) return
-        val sb = StringBuilder(formula)
-        val safeIndex = cursorIndex.coerceIn(0, formula.length)
-        sb.insert(safeIndex, symbol)
-        formula = sb.toString()
-        cursorIndex = safeIndex + when {
-            symbol.contains("{}") -> symbol.indexOf("{") + 1
-            else -> symbol.length
-        }
+    // Динамический шрифт
+    val dynamicFontSize = when {
+        viewModel.formula.length < 15 -> 36.sp
+        viewModel.formula.length < 45 -> 28.sp
+        else -> 20.sp
     }
 
     Scaffold(
@@ -90,64 +69,36 @@ fun MathInputScreen(
                 shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
                 shadowElevation = 8.dp
             ) {
-                Column(
-                    modifier = Modifier
-                        .widthIn(max = 600.dp)
-                        .padding(bottom = 12.dp, top = 8.dp)
-                ) {
+                Column(modifier = Modifier.widthIn(max = 600.dp).padding(bottom = 12.dp, top = 8.dp)) {
                     // Вкладки
                     Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         listOf("±", "f(x)", "sin").forEach { id ->
-                            val isSelected = currentTab == id
+                            val isSelected = viewModel.currentTab == id
                             Button(
-                                onClick = { currentTab = id },
+                                onClick = { viewModel.currentTab = id },
                                 modifier = Modifier.weight(1f).height(38.dp),
                                 shape = RoundedCornerShape(20.dp),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = if (isSelected) darkGreenBg else Color.White,
                                     contentColor = if (isSelected) Color.White else darkGreenBg
-                                ),
-                                contentPadding = PaddingValues(0.dp)
+                                )
                             ) { Text(id, fontSize = 13.sp, fontWeight = FontWeight.Bold) }
                         }
                     }
 
                     // Навигация
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        val controls = listOf("←" to "L", "→" to "R", "⌫" to "DEL", "C" to "CLR", "=" to "SOLVE")
-                        controls.forEach { (label, action) ->
-                            Surface(
-                                onClick = {
-                                    when (action) {
-                                        "CLR" -> { formula = ""; cursorIndex = 0 }
-                                        "DEL" -> if (cursorIndex > 0) {
-                                            formula = StringBuilder(formula).deleteAt(cursorIndex - 1).toString()
-                                            cursorIndex--
-                                        }
-                                        "L" -> cursorIndex = (cursorIndex - 1).coerceIn(0, formula.length)
-                                        "R" -> cursorIndex = (cursorIndex + 1).coerceIn(0, formula.length)
-                                        "SOLVE" -> onSolve(formula)
-                                    }
-                                },
-                                modifier = Modifier.weight(1f).height(44.dp),
-                                shape = RoundedCornerShape(10.dp),
-                                color = if (action == "SOLVE") accentGreen else Color(0xFFBCCBB6)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Text(label, fontWeight = FontWeight.Bold, color = if (action == "SOLVE") Color.White else darkGreenBg, fontSize = 20.sp)
-                                }
-                            }
-                        }
+                    Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ControlKey("←") { viewModel.moveCursorLeft() }
+                        ControlKey("→") { viewModel.moveCursorRight() }
+                        ControlKey("⌫") { viewModel.onDelete() }
+                        ControlKey("C") { viewModel.onClear() }
+                        ControlKey("=", isAccent = true) { viewModel.solveFormula() }
                     }
 
-
-                    MathKeyboard(tab = currentTab, onSymbolClick = { insert(it) })
+                    MathKeyboard(tab = viewModel.currentTab, onSymbolClick = { viewModel.onSymbolClick(it) })
 
                     Button(
-                        onClick = { onSolve(formula) },
+                        onClick = { viewModel.solveFormula() },
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp).height(50.dp),
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = accentGreen)
@@ -157,56 +108,48 @@ fun MathInputScreen(
         }
     ) { paddingValues ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 16.dp)
-                .verticalScroll(mainScrollState),
+            modifier = Modifier.fillMaxSize().padding(paddingValues).padding(horizontal = 16.dp).verticalScroll(mainScrollState),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(Modifier.height(16.dp))
-
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .widthIn(max = 600.dp)
-                    .height(140.dp)
-                    .background(darkGreenBg, RoundedCornerShape(24.dp))
-                    .padding(horizontal = 20.dp),
+                modifier = Modifier.fillMaxWidth().widthIn(max = 600.dp).height(140.dp).background(darkGreenBg, RoundedCornerShape(24.dp)).padding(horizontal = 20.dp),
                 contentAlignment = Alignment.CenterStart
             ) {
                 Row(modifier = Modifier.fillMaxWidth().horizontalScroll(hScrollState), verticalAlignment = Alignment.CenterVertically) {
-                    Latex(
-                        latex = visualFormula,
-                        config = LatexConfig(fontSize = dynamicFontSize, color = Color.White),
-                        modifier = Modifier.wrapContentWidth()
-                    )
+                    Latex(latex = visualFormula, config = LatexConfig(fontSize = dynamicFontSize, color = Color.White))
                 }
             }
-
-            Card(
-                modifier = Modifier.fillMaxWidth().widthIn(max = 600.dp).padding(top = 10.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F0E2))
-            ) {
-                Text(
-                    text = "Latex: $formula",
-                    modifier = Modifier.padding(10.dp),
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 11.sp,
-                    color = darkGreenBg
-                )
+            // Отображение сырого Latex для отладки
+            Card(modifier = Modifier.fillMaxWidth().widthIn(max = 600.dp).padding(top = 10.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F0E2))) {
+                Text(text = "Latex: ${viewModel.formula}", modifier = Modifier.padding(10.dp), fontFamily = FontFamily.Monospace, fontSize = 11.sp, color = darkGreenBg)
             }
-
+            // Поле результата
             Box(modifier = Modifier.fillMaxWidth().widthIn(max = 600.dp).padding(top = 16.dp, end = 8.dp), contentAlignment = Alignment.CenterEnd) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("= ", fontSize = 26.sp, color = secondaryText)
-                    Text("4", fontSize = 48.sp, fontWeight = FontWeight.ExtraBold, color = darkGreenBg)
+                    Text(viewModel.result.ifEmpty { "0" }, fontSize = 48.sp, fontWeight = FontWeight.ExtraBold, color = darkGreenBg)
                 }
             }
         }
     }
 }
 
+@Composable
+fun ControlKey(label: String, isAccent: Boolean = false, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.height(44.dp).width(64.dp),
+        shape = RoundedCornerShape(10.dp),
+        color = if (isAccent) accentGreen else Color(0xFFBCCBB6)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(label, fontWeight = FontWeight.Bold, color = if (isAccent) Color.White else darkGreenBg, fontSize = 20.sp)
+        }
+    }
+}
+
+// Функцию MathKeyboard тоже нужно оставить в этом файле, если она не вынесена
 @Composable
 fun MathKeyboard(tab: String, onSymbolClick: (String) -> Unit) {
     val symbols = when (tab) {
@@ -230,13 +173,9 @@ fun MathKeyboard(tab: String, onSymbolClick: (String) -> Unit) {
         else -> emptyList()
     }
 
-
     LazyVerticalGrid(
         columns = GridCells.Fixed(4),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp)
-            .wrapContentHeight(),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp).wrapContentHeight(),
         verticalArrangement = Arrangement.spacedBy(6.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         userScrollEnabled = false
