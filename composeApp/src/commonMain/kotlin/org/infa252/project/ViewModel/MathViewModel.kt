@@ -14,25 +14,74 @@ class MathViewModel(private val repository: MathRepository) : ViewModel() {
     // Логика вставки символа
     fun onSymbolClick(symbol: String) {
         if (formula.length >= 300) return
+
+        // Prevent multiple decimal points in a single number
+        if (symbol == ".") {
+            if (isDecimalPointForbidden()) return
+        }
+
         val sb = StringBuilder(formula)
         val safeIndex = cursorIndex.coerceIn(0, formula.length)
         sb.insert(safeIndex, symbol)
         formula = sb.toString()
 
-        // Умное перемещение курсора внутрь скобок {}
+        // Умное перемещение курсора внутрь первых скобок {}
         cursorIndex = safeIndex + if (symbol.contains("{}")) {
-            symbol.indexOf("{") + 1
+            symbol.indexOf("{}") + 1
         } else {
             symbol.length
         }
     }
 
+    private fun isDecimalPointForbidden(): Boolean {
+        if (formula.isEmpty()) return false
+        val safeIndex = cursorIndex.coerceIn(0, formula.length)
+        
+        // Look back from cursor to find if the current number already has a dot
+        var i = safeIndex - 1
+        while (i >= 0) {
+            val char = formula[i]
+            if (char == '.') return true
+            if (!char.isDigit()) break
+            i--
+        }
+        
+        // Look forward from cursor
+        var j = safeIndex
+        while (j < formula.length) {
+            val char = formula[j]
+            if (char == '.') return true
+            if (!char.isDigit()) break
+            j++
+        }
+        
+        return false
+    }
+
     fun onDelete() {
         if (cursorIndex > 0) {
             val sb = StringBuilder(formula)
-            sb.deleteAt(cursorIndex - 1)
+            
+            // Smart delete: if deleting a command part, delete the whole command
+            var deleteCount = 1
+            if (formula[cursorIndex - 1].isLetter()) {
+                var i = cursorIndex - 1
+                while (i >= 0 && formula[i].isLetter()) {
+                    i--
+                }
+                if (i >= 0 && formula[i] == '\\') {
+                    deleteCount = cursorIndex - i
+                }
+            } else if (formula[cursorIndex - 1] == '\\') {
+                deleteCount = 1
+            }
+
+            val start = (cursorIndex - deleteCount).coerceAtLeast(0)
+            repeat(deleteCount) {
+                sb.deleteAt(start)
+            }
             formula = sb.toString()
-            cursorIndex--
+            cursorIndex = start
         }
     }
 
@@ -43,11 +92,37 @@ class MathViewModel(private val repository: MathRepository) : ViewModel() {
     }
 
     fun moveCursorLeft() {
-        cursorIndex = (cursorIndex - 1).coerceIn(0, formula.length)
+        if (cursorIndex <= 0) return
+        
+        var newIndex = cursorIndex - 1
+        // Skip over LaTeX commands like \sin or \frac
+        while (newIndex > 0 && isInsideLatexCommand(newIndex)) {
+            newIndex--
+        }
+        cursorIndex = newIndex
     }
 
     fun moveCursorRight() {
-        cursorIndex = (cursorIndex + 1).coerceIn(0, formula.length)
+        if (cursorIndex >= formula.length) return
+        
+        var newIndex = cursorIndex + 1
+        // Skip over LaTeX commands
+        while (newIndex < formula.length && isInsideLatexCommand(newIndex)) {
+            newIndex++
+        }
+        cursorIndex = newIndex
+    }
+
+    private fun isInsideLatexCommand(index: Int): Boolean {
+        // If we are at a backslash, we are at the start of a command
+        if (formula[index] == '\\') return true
+        
+        // Check if we are part of an alphabetic command following a backslash
+        var i = index - 1
+        while (i >= 0 && formula[i].isLetter()) {
+            i--
+        }
+        return i >= 0 && formula[i] == '\\'
     }
 
     fun solveFormula() {
