@@ -1,17 +1,30 @@
 package org.infa252.project
 
-/**
- * Репозиторий для связи с математическим ядром.
- */
 class MathRepository {
 
-    // В будущем здесь будет:
-    // external fun solveNative(formula: String): String
+    private val nativeLib = NativeLib()
 
     fun solve(formula: String): String {
-        if (formula.isEmpty()) return "0"
+        if (formula.isBlank()) return "0"
 
-        // Пока ядра нет, имитируем результат
-        return "ответ"
+        return try {
+            val preparedInput = formula
+                .replace("\\pi", "3.14159")
+                .replace("\\times", "*")
+                .replace("\\div", "/")
+                .replace("\\frac{", "(")
+                .replace("}{", ")/(")
+                .replace("{", "(")
+                .replace("}", ")")
+                .replace("\\", "")
+
+
+            val result: String = nativeLib.calculate(preparedInput)
+
+                 if (result.isEmpty()) "0" else result
+
+        } catch (e: Exception) {
+            "Ошибка ядра"
+        }
     }
 }
