@@ -6,10 +6,16 @@ import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.*
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -25,13 +31,17 @@ fun MathInputScreen(
 ) {
     val hScrollState = rememberScrollState()
     val mainScrollState = rememberScrollState()
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
 
     // Визуализация формулы с курсором
     val visualFormula = remember(viewModel.formula, viewModel.cursorIndex) {
         val safeIndex = viewModel.cursorIndex.coerceIn(0, viewModel.formula.length)
-        val withCursor = if (viewModel.formula.isEmpty()) "|"
+        if (viewModel.formula.isEmpty()) "|"
         else StringBuilder(viewModel.formula).insert(safeIndex, "|").toString()
-        withCursor.replace("%", "\\%")
     }
 
     // Динамический шрифт
@@ -44,7 +54,71 @@ fun MathInputScreen(
     }
 
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .focusRequester(focusRequester)
+            .focusable()
+            .onKeyEvent { keyEvent ->
+                if (keyEvent.type == KeyEventType.KeyDown) {
+                    val isCtrl = keyEvent.isCtrlPressed
+                    when {
+                        isCtrl && keyEvent.key == Key.Z -> {
+                            viewModel.undo()
+                            true
+                        }
+                        isCtrl && keyEvent.key == Key.Y -> {
+                            viewModel.redo()
+                            true
+                        }
+                        keyEvent.key == Key.DirectionLeft -> {
+                            viewModel.moveCursorLeft()
+                            true
+                        }
+                        keyEvent.key == Key.DirectionRight -> {
+                            viewModel.moveCursorRight()
+                            true
+                        }
+                        keyEvent.key == Key.Backspace -> {
+                            viewModel.onDelete()
+                            true
+                        }
+                        keyEvent.key == Key.Enter -> {
+                            viewModel.solveFormula()
+                            true
+                        }
+                        keyEvent.key == Key.Escape -> {
+                            onBack()
+                            true
+                        }
+                        keyEvent.key == Key.Tab -> {
+                            // Logic for Tab jump
+                            viewModel.moveCursorRight() // Currently our smart right arrow handles jumps
+                            true
+                        }
+                        else -> {
+                            val char = keyEvent.utf16CodePoint.toChar()
+                            val symbol = when (char) {
+                                '%' -> "\\%"
+                                '*' -> "\\times"
+                                '/' -> "÷"
+                                '^' -> "^{}"
+                                '_' -> "_{}"
+                                '(' -> "\\left( \\right)"
+                                '[' -> "\\left[ \\right]"
+                                else -> char.toString()
+                            }
+                            if (char.isDigit() || char in "+-*/.(),=x%^_{}[]") {
+                                viewModel.onSymbolClick(symbol)
+                                true
+                            } else {
+                                false
+                            }
+                        }
+                    }
+                } else {
+                    false
+                }
+            },
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             CenterAlignedTopAppBar(
@@ -160,7 +234,7 @@ fun MathInputScreen(
                         latex = visualFormula, 
                         config = LatexConfig(
                             fontSize = dynamicFontSize, 
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.background
                         )
                     )
                 }
@@ -170,12 +244,29 @@ fun MathInputScreen(
                 modifier = Modifier.fillMaxWidth().widthIn(max = 600.dp).padding(top = 10.dp), 
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.outlineVariant)
             ) {
-                Text(
-                    text = "Latex: ${viewModel.formula}",
-                    modifier = Modifier.padding(10.dp), 
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                val clipboardManager = LocalClipboardManager.current
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Latex: ${viewModel.formula}",
+                        modifier = Modifier.weight(1f).padding(vertical = 10.dp), 
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    IconButton(onClick = { 
+                        clipboardManager.setText(AnnotatedString(viewModel.formula))
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.ContentCopy,
+                            contentDescription = "Copy Latex",
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
             }
             // Поле результата
             AppTheme {
@@ -224,21 +315,22 @@ fun MathKeyboard(tab: String, onSymbolClick: (String) -> Unit) {
     val symbols = remember(tab) {
         when (tab) {
             "±" -> listOf(
-                "7" to "7", "8" to "8", "9" to "9", "÷" to "/",
-                "4" to "4", "5" to "5", "6" to "6", "×" to "*",
+                "7" to "7", "8" to "8", "9" to "9", "÷" to "÷",
+                "4" to "4", "5" to "5", "6" to "6", "×" to "\\times",
                 "1" to "1", "2" to "2", "3" to "3", "-" to "-",
                 "0" to "0", "." to ".", "π" to "\\pi", "+" to "+",
-                "□/□" to "\\frac{}{}", "√□" to "\\sqrt{}", "□²" to "^{2}", "( )" to "( )",
-                "x" to "x", ">" to ">", "%" to "%", "=" to "="
+                "□/□" to "\\frac{}{}", "√□" to "\\sqrt{}", "□²" to "^{2}", "( )" to "\\left( \\right)",
+                "x" to "x", ">" to ">", "%" to "\\%", "=" to "="
             )
             "f(x)" -> listOf(
-                "|x|" to "| |", "log₁₀" to "\\log_{10}{}", "A" to "A_{}^{}", "e" to "e",
+                "|x|" to "\\left| {} \\right|", "log₁₀" to "\\log_{10}{}", "A" to "A_{}^{}", "e" to "e",
                 "log₂" to "\\log_{2}{}", "P" to "P_{}^{}", "!" to "!", "logₙ" to "\\log_{}{}",
-                "C" to "C_{}^{}", "ln" to "\\ln{}", "d/dx" to "\\frac{d}{dx}{}", "∫dx" to "\\int{}dx"
+                "C" to "C_{}^{}", "ln" to "\\ln{}", "Σ" to "\\sum_{}^{}{}", "∫" to "\\int_{}^{}{}dx",
+                "lim" to "\\lim_{ \\to }{}"
             )
             "sin" -> listOf(
                 "sin" to "\\sin{}", "cos" to "\\cos{}", "tan" to "\\tan{}", "asin" to "\\arcsin{}", "acos" to "\\arccos{}", "atan" to "\\arctan{}",
-                "sinh" to "\\sinh{}", "cosh" to "\\cosh{}", "tanh" to "\\tanh{}", "rad" to "rad", "°" to "^{\\circ}", "!" to "!"
+                "sinh" to "\\sinh{}", "cosh" to "\\cosh{}", "tanh" to "\\tanh{}", "rad" to "\\text{rad}", "!" to "!"
             )
             else -> emptyList()
         }
