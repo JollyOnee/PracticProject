@@ -1,55 +1,76 @@
 package org.infa252.project
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.safeContentPadding
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import org.jetbrains.compose.resources.painterResource
-
-import practicproject.composeapp.generated.resources.Res
-import practicproject.composeapp.generated.resources.compose_multiplatform
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 @Composable
-@Preview
 fun App() {
-    AppTheme {
-        var screen by remember { mutableStateOf("home") }
+    // Состояние навигации
+    var currentScreen by remember { mutableStateOf("start") }
 
-        when (screen) {
-            "home" -> {
-                Column(
+    // Цвета (дублируем основные, чтобы UI был консистентным)
+    val darkGreenBg = Color(0xFF161D15)
+    val lightGreenBg = Color(0xFFF4FCED)
+    val accentGreen = Color(0xFF006E1C)
+
+    // Инициализация архитектурных слоев (MVVM)
+    // Используем remember, чтобы объекты не пересоздавались при каждом обновлении экрана
+    val repository = remember { MathRepository() }
+    val viewModel = remember { MathViewModel(repository) }
+
+    MaterialTheme {
+        when (currentScreen) {
+            "start" -> {
+                Box(
                     modifier = Modifier
-                        .background(MaterialTheme.colorScheme.background)
-                        .safeContentPadding()
-                        .fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
+                        .fillMaxSize()
+                        .background(lightGreenBg),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "MathSolver",
-                        style = MaterialTheme.typography.headlineLarge,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Button(onClick = { screen = "input" }) {
-                        Text("Перейти к калькулятору")
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "MathSolver",
+                            fontSize = 48.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = darkGreenBg,
+                            modifier = Modifier.padding(bottom = 32.dp)
+                        )
+
+                        Button(
+                            onClick = { currentScreen = "input" },
+                            modifier = Modifier
+                                .width(200.dp)
+                                .height(56.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = accentGreen)
+                        ) {
+                            Text(
+                                text = "Начать",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
                     }
                 }
             }
             "input" -> {
+                // ПЕРЕДАЕМ ViewModel вместо старого onSolve
                 MathInputScreen(
-                    onBack = { screen = "home" },
-                    onSolve = { formula ->
-                        // Handle solve action
-                    }
+                    viewModel = viewModel,
+                    onBack = { currentScreen = "start" }
                 )
             }
         }
