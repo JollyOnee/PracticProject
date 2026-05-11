@@ -2,12 +2,10 @@ package org.infa252.project
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -17,23 +15,17 @@ fun App() {
     // Состояние навигации
     var currentScreen by remember { mutableStateOf("start") }
 
-    // Цвета (дублируем основные, чтобы UI был консистентным)
-    val darkGreenBg = Color(0xFF161D15)
-    val lightGreenBg = Color(0xFFF4FCED)
-    val accentGreen = Color(0xFF006E1C)
-
     // Инициализация архитектурных слоев (MVVM)
-    // Используем remember, чтобы объекты не пересоздавались при каждом обновлении экрана
     val repository = remember { MathRepository() }
     val viewModel = remember { MathViewModel(repository) }
 
-    MaterialTheme {
+    AppTheme {
         when (currentScreen) {
             "start" -> {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(lightGreenBg),
+                        .background(MaterialTheme.colorScheme.background),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
@@ -42,9 +34,11 @@ fun App() {
                     ) {
                         Text(
                             text = "MathSolver",
-                            fontSize = 48.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = darkGreenBg,
+                            style = MaterialTheme.typography.displayMedium.copy(
+                                fontSize = 48.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            ),
+                            color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.padding(bottom = 32.dp)
                         )
 
@@ -53,21 +47,21 @@ fun App() {
                             modifier = Modifier
                                 .width(200.dp)
                                 .height(56.dp),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = accentGreen)
+                            shape = MaterialTheme.shapes.large,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary
+                            )
                         ) {
                             Text(
                                 text = "Начать",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                style = MaterialTheme.typography.labelLarge.copy(fontSize = 18.sp),
+                                color = MaterialTheme.colorScheme.onPrimary
                             )
                         }
                     }
                 }
             }
             "input" -> {
-                // ПЕРЕДАЕМ ViewModel вместо старого onSolve
                 MathInputScreen(
                     viewModel = viewModel,
                     onBack = { currentScreen = "start" }
