@@ -206,9 +206,18 @@ class BigNumber {
     }
 
     fun pow(exp: BigNumber): BigNumber {
-        if (exp.point != 0) throw ArithmeticException("Non-integer exponent")
         if (exp.value == "0") return BigNumber("1", 0, false)
-        if (exp.sign) throw ArithmeticException("Negative exponent not supported")
+        
+        // If exponent is fractional
+        if (exp.point != 0) {
+            if (this.sign) throw ArithmeticException("Negative base with fractional exponent")
+            val doubleBase = this.toString().toDoubleOrNull() ?: 0.0
+            val doubleExp = exp.toString().toDoubleOrNull() ?: 0.0
+            // Using exp(y * ln(x)) as a workaround for commonMain pow
+            return fromString(kotlin.math.exp(doubleExp * kotlin.math.log(doubleBase, kotlin.math.E)).toString())
+        }
+
+        if (exp.sign) throw ArithmeticException("Negative exponent not supported for integers via this method")
 
         var base = BigNumber(this)
         var exponentStr = exp.value
@@ -281,6 +290,62 @@ class BigNumber {
     fun log10(): BigNumber {
         val doubleVal = this.toString().toDoubleOrNull() ?: 1.0
         return fromString(kotlin.math.log10(doubleVal).toString())
+    }
+
+    fun exp(): BigNumber {
+        val doubleVal = this.toString().toDoubleOrNull() ?: 0.0
+        return fromString(kotlin.math.exp(doubleVal).toString())
+    }
+
+    fun asin(): BigNumber {
+        val doubleVal = this.toString().toDoubleOrNull() ?: 0.0
+        if (doubleVal < -1.0 || doubleVal > 1.0) throw ArithmeticException("asin out of domain")
+        return fromString(kotlin.math.asin(doubleVal).toString())
+    }
+
+    fun acos(): BigNumber {
+        val doubleVal = this.toString().toDoubleOrNull() ?: 0.0
+        if (doubleVal < -1.0 || doubleVal > 1.0) throw ArithmeticException("acos out of domain")
+        return fromString(kotlin.math.acos(doubleVal).toString())
+    }
+
+    fun atan(): BigNumber {
+        val doubleVal = this.toString().toDoubleOrNull() ?: 0.0
+        return fromString(kotlin.math.atan(doubleVal).toString())
+    }
+
+    fun abs(): BigNumber {
+        val res = BigNumber(this)
+        res.sign = false
+        return res
+    }
+
+    fun absCompareTo(other: BigNumber): Int {
+        val a = BigNumber(this)
+        val b = BigNumber(other)
+        while (a.point < b.point) { a.value += "0"; a.point++ }
+        while (b.point < a.point) { b.value += "0"; b.point++ }
+        while (a.value.length < b.value.length) a.value = "0" + a.value
+        while (b.value.length < a.value.length) b.value = "0" + b.value
+        return a.value.compareTo(b.value)
+    }
+
+    fun factorial(): BigNumber {
+        if (sign) throw ArithmeticException("Factorial of negative number")
+        if (point != 0) throw ArithmeticException("Factorial of non-integer")
+        
+        if (value == "0") return BigNumber("1")
+        
+        var result = BigNumber("1")
+        var current = BigNumber("1")
+        val limit = this
+        val one = BigNumber("1")
+        
+        while (current.absCompareTo(limit) <= 0) {
+            result = result * current
+            current = current + one
+        }
+        return result
     }
 
     fun toStringRepresentation(): String {

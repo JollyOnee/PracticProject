@@ -2,18 +2,19 @@ package org.infa252.project
 
 class MathParser {
 
-    enum class TokenType { NUMBER, OP, LPAREN, RPAREN, FUNCTION }
+    enum class TokenType { NUMBER, OP, LPAREN, RPAREN, FUNCTION, POSTFIX }
     data class Token(val type: TokenType, val value: String)
 
     private fun priority(op: String): Int = when (op) {
-        "sqrt", "sin", "cos", "tan", "ln", "log" -> 4
+        "!" -> 5
+        "sqrt", "sin", "cos", "tan", "ln", "log", "asin", "acos", "atan" -> 4
         "^" -> 3
         "*", "/" -> 2
         "+", "-" -> 1
         else -> 0
     }
 
-    private val functions = setOf("sqrt", "sin", "cos", "tan", "ln", "log")
+    private val functions = setOf("sqrt", "sin", "cos", "tan", "ln", "log", "asin", "acos", "atan", "abs", "exp")
 
     fun tokenize(s: String): List<Token> {
         val tokens = mutableListOf<Token>()
@@ -55,14 +56,15 @@ class MathParser {
                     tokens.add(Token(TokenType.FUNCTION, name))
                 }
                 expectNumber = true
-            } else if ("+-*/^()".contains(c)) {
+            } else if ("+-*/^()!".contains(c)) {
                 val type = when (c) {
                     '(' -> TokenType.LPAREN
                     ')' -> TokenType.RPAREN
+                    '!' -> TokenType.POSTFIX
                     else -> TokenType.OP
                 }
                 tokens.add(Token(type, c.toString()))
-                expectNumber = c != ')'
+                expectNumber = c == '(' || c == '+' || c == '-' || c == '*' || c == '/' || c == '^'
                 i++
             } else {
                 i++ // Ignore unknown
@@ -78,6 +80,7 @@ class MathParser {
         for (t in tokens) {
             when (t.type) {
                 TokenType.NUMBER -> output.add(t)
+                TokenType.POSTFIX -> output.add(t) // Postfix operators go directly to output in simple cases
                 TokenType.FUNCTION -> {
                     while (ops.isNotEmpty() && ops.last().value != "(" && priority(ops.last().value) >= priority(t.value)) {
                         output.add(ops.removeAt(ops.size - 1))
@@ -125,7 +128,21 @@ class MathParser {
                         "tan" -> a.tan()
                         "ln" -> a.ln()
                         "log" -> a.log10()
+                        "asin" -> a.asin()
+                        "acos" -> a.acos()
+                        "atan" -> a.atan()
+                        "abs" -> a.abs()
+                        "exp" -> a.exp()
                         else -> throw IllegalArgumentException("Unknown function: ${t.value}")
+                    }
+                    stack.add(res)
+                }
+                TokenType.POSTFIX -> {
+                    if (stack.isEmpty()) throw IllegalArgumentException("Insufficient operands for ${t.value}")
+                    val a = stack.removeAt(stack.size - 1)
+                    val res = when (t.value) {
+                        "!" -> a.factorial()
+                        else -> throw IllegalArgumentException("Unknown postfix: ${t.value}")
                     }
                     stack.add(res)
                 }
@@ -162,13 +179,38 @@ class MathParser {
             .replace("\\tan", "tan")
             .replace("\\ln", "ln")
             .replace("\\log", "log")
+            .replace("\\arcsin", "asin")
+            .replace("\\arccos", "acos")
+            .replace("\\arctan", "atan")
+            .replace("\\sin^{-1}", "asin")
+            .replace("\\cos^{-1}", "acos")
+            .replace("\\tan^{-1}", "atan")
+            .replace("\\abs", "abs")
+            .replace("\\exp", "exp")
             
+        // Replace |x| with abs(x)
+        val sb = StringBuilder()
+        var openAbs = false
+        for (char in s) {
+            if (char == '|') {
+                if (!openAbs) {
+                    sb.append("abs(")
+                    openAbs = true
+                } else {
+                    sb.append(")")
+                    openAbs = false
+                }
+            } else {
+                sb.append(char)
+            }
+        }
+        s = sb.toString()
+
         // Replace brackets BEFORE anything else
         s = s.replace("{", "(").replace("}", ")").replace("[", "(").replace("]", ")")
 
         // Handle \sqrt[n](x) -> (x)^(1/n)
         while (s.contains("\\sqrt(")) { // After bracket replacement it's \sqrt(
-             // Actually my previous loop was correct for [n]
              break // simplified for now to avoid hang
         }
 
@@ -249,7 +291,31 @@ class MathParser {
             val latexHandled = parseLatex(expression)
             val tokens = tokenize(latexHandled)
             val rpn = toRPN(tokens)
-            evalRPN(rpn).toString()
+            var res = evalRPN(rpn).toString()
+            
+            // Post-processing for rounding artifacts from fractional powers (Double conversion artifacts)
+            if (res.contains(".")) {
+                 val ninePattern = "999999"
+                 val zeroPattern = "000000"
+                 if (res.contains(ninePattern)) {
+                     val idx = res.indexOf(ninePattern)
+                     // If it's near the end and we have a fairly long string, it's likely a Double artifact
+                     if (res.length - idx < 12 && res.length > 8) {
+                         val prefix = res.substring(0, idx)
+                         if (prefix.endsWith(".")) {
+                             res = (prefix.substring(0, prefix.length - 1).toLong() + 1).toString()
+                         } else {
+                             res = prefix.substring(0, prefix.length - 1) + (prefix.last().digitToInt() + 1).toString()
+                         }
+                     }
+                 } else if (res.contains(zeroPattern)) {
+                     val idx = res.indexOf(zeroPattern)
+                     if (res.length - idx < 12 && res.length > 8) {
+                        res = res.substring(0, idx).trimEnd('.')
+                     }
+                 }
+            }
+            res
         } catch (e: Exception) {
             "Error"
         }

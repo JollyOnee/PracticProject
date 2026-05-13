@@ -62,6 +62,13 @@ class MathCoreTest {
         
         val cos0 = parser.evaluate("\\cos(0)")
         assertEquals("1", cos0)
+
+        // Inverse trig
+        assertEquals("0", parser.evaluate("\\arcsin(0)"))
+        assertEquals("0", parser.evaluate("\\arctan(0)"))
+        val acos1 = parser.evaluate("\\arccos(1)")
+        assertEquals("0", acos1)
+        assertEquals("Error", parser.evaluate("\\arcsin(2)"))
     }
 
     @Test
@@ -69,6 +76,36 @@ class MathCoreTest {
         val parser = MathParser()
         // sqrt(sin(0) + 4) = sqrt(0 + 4) = 2
         assertEquals("2", parser.evaluate("\\sqrt{\\sin(0) + 4}"))
+    }
+
+    @Test
+    fun testFactorial() {
+        val parser = MathParser()
+        assertEquals("120", parser.evaluate("5!"))
+        assertEquals("1", parser.evaluate("0!"))
+        assertEquals("7", parser.evaluate("3! + 1"))
+        assertEquals("720", parser.evaluate("(3!)!"))
+        assertEquals("Error", parser.evaluate("(-1)!"))
+        assertEquals("Error", parser.evaluate("1.5!"))
+    }
+
+    @Test
+    fun testAbs() {
+        val parser = MathParser()
+        assertEquals("5", parser.evaluate("abs(-5)"))
+        assertEquals("5", parser.evaluate("\\abs{-5}"))
+        assertEquals("5", parser.evaluate("|-5|"))
+        assertEquals("10", parser.evaluate("abs(-5) * 2"))
+    }
+
+    @Test
+    fun testFractionalExponents() {
+        val parser = MathParser()
+        val result = parser.evaluate("2^0.5")
+        assertTrue(result.startsWith("1.414"))
+        
+        assertEquals("8", parser.evaluate("64^(0.5)"))
+        assertEquals("Error", parser.evaluate("(-2)^0.5"))
     }
 
     @Test
