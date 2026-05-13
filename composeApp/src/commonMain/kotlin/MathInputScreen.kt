@@ -98,7 +98,7 @@ fun MathInputScreen(
                         else -> {
                             val char = keyEvent.utf16CodePoint.toChar()
                             val symbol = when (char) {
-                                '%' -> "\\%"
+                                '%' -> "\\frac{}{}"
                                 '*' -> "\\times"
                                 '/' -> "÷"
                                 '^' -> "^{}"
@@ -320,7 +320,7 @@ fun MathKeyboard(tab: String, onSymbolClick: (String) -> Unit) {
                 "1" to "1", "2" to "2", "3" to "3", "-" to "-",
                 "0" to "0", "." to ".", "π" to "\\pi", "+" to "+",
                 "□/□" to "\\frac{}{}", "√□" to "\\sqrt{}", "□²" to "^{2}", "( )" to "\\left( \\right)",
-                "x" to "x", ">" to ">", "%" to "\\%", "=" to "="
+                "x" to "x", ">" to ">", "%" to "\\frac{}{}", "=" to "="
             )
             "f(x)" -> listOf(
                 "|x|" to "\\left| {} \\right|", "log₁₀" to "\\log_{10}{}", "A" to "A_{}^{}", "e" to "e",
