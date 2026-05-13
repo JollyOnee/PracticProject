@@ -1,6 +1,9 @@
 package org.infa252.project
 
+class NativeLib {
+    private val parser = MathParser()
 
-expect class NativeLib() {
-    fun calculate(expression: String): String
+    fun calculate(expression: String): String {
+        return parser.evaluate(expression)
+    }
 }
