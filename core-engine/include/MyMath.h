@@ -266,4 +266,23 @@ public:
     void normalize();
 };
 BigNumber evaluate(const std::string& expr);
+
+class MyMath {
+public:
+    static std::string solve(std::string formula) {
+        try {
+            // Вызываем существующую функцию evaluate из твоего файла
+            BigNumber result = evaluate(formula);
+
+            // Здесь должна быть логика превращения BigNumber обратно в строку
+            // Если у тебя нет метода toString(), можно временно использовать getValue()
+            // Но учитывай положение точки (getPoint()) и знак!
+            return result.getValue();
+        } catch (...) {
+            return "Error";
+        }
+    }
+};
+
+BigNumber evaluate(const std::string& expr);
 #endif
