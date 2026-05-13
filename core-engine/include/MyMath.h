@@ -14,7 +14,7 @@ public:
     BigNumber(std::string _value);
     BigNumber(const BigNumber &number);
     BigNumber operator - () const {
-        return BigNumber{value, point, 1-sign};
+        return BigNumber{value, point, !sign};
     }
     BigNumber operator + (const BigNumber& number) const {
         BigNumber a = *this;
@@ -265,5 +265,5 @@ public:
     void ParametrsPrint();
     void normalize();
 };
-
+BigNumber evaluate(const std::string& expr);
 #endif

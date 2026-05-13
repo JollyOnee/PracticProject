@@ -1,10 +1,6 @@
 package org.infa252.project
 
-class NativeLib {
-    init {
-
-        java.lang.System.loadLibrary("math_solver_lib")
-    }
-
-    external fun calculate(expression: String): String
+// Здесь должно быть ТОЛЬКО слово expect и никаких тел функций { }
+expect class NativeLib() {
+    fun calculate(expression: String): String
 }

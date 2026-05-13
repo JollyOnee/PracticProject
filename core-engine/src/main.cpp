@@ -125,7 +125,7 @@ BigNumber evaluate(const std::string& expr) {
     auto rpn = toRPN(tokens);
     return evalRPN(rpn);
 }
-int main() {
+int test_run() {
     BigNumber num1{"123", 2};
     BigNumber num2{"234", 3};
     for (int i=-5; i<7; i++) {
