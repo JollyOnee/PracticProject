@@ -111,56 +111,74 @@ BigNumber Polynom::max() {
     return max;
 }
 std::vector<BigNumber> Polynom::Solve() {
-    BigNumber h{"1",1};
-    BigNumber minus{"1",0,1};
-    BigNumber one{"1"};
-    std::vector<BigNumber> poly = polynom;
-    std::list<BigNumber> n = {};
-    for (int i = 0; i<poly.size(); i++) {
-        n.push_back(poly[i]); 
-    }
-    Polynom pol = n;
-    if (poly[poly.size()-1].getSign()==1) {
-            (poly[poly.size()-1] = poly[poly.size()-1]*minus);
-    }
-    BigNumber left{"1"};
-    BigNumber right{"1"};
-    for (int i=0; i<poly.size(); i++) {
-        if ((poly.size()-1-i) != 0) {
-            if (BigNumber{(max() / poly[poly.size()-1-i] + one)-BigNumber{"1000"}}.getSign()==1) left = minus * (max() / poly[poly.size()-1-i] + one);
-            else left = BigNumber{"1000",0,1};
-            if (BigNumber{(max() / poly[poly.size()-1-i] + one)-BigNumber{"1000"}}.getSign()==1) right = (max() / poly[poly.size()-1-i] + one);
-            else right = BigNumber{"1000"};
-            break;
+    std::vector<BigNumber> roots;
+    std::list<BigNumber> n;
+    for (int i = 0; i < polynom.size(); i++)
+        n.push_back(polynom[i]);
+    Polynom p = n;
+    BigNumber step{"1",2};
+    BigNumber eps {"1",6}; 
+    BigNumber left {"100",0,1}; 
+    BigNumber right{"100"};    
+    auto absVal = [&](const BigNumber& v)
+    {
+        BigNumber t = v;
+        if (t.getSign() == 1)
+            t = BigNumber{"0"} - t;
+        return t;
+    };
+    auto isZero = [&](const BigNumber& v)
+    {
+        return (BigNumber{eps - absVal(v)}).getSign() != 1;
+    };
+    auto addRoot = [&](const BigNumber& r)
+    {
+        for (auto &rt : roots)
+        {
+            BigNumber d = rt - r;
+            if (d.getSign() == 1)
+                d = BigNumber{"0"} - d;
+            if (BigNumber{eps - d}.getSign() != 1)
+                return;
         }
-    }
-    std::vector<BigNumber> sol = {};
-    for (BigNumber i=left-h; BigNumber{right-i}.getSign()==0; i = BigNumber{"1",1}+i) {
-        BigNumber mul{pol(i)*pol(BigNumber{"1",1}+i)}; mul.print(1); i.print(1);
-        if (mul.getSign()==1) {
-            BigNumber l = i; BigNumber r = BigNumber{"1",1}+i;
-            for (int j=0; j<5; j++) {
-                auto fl = pol(l);
-                auto fr = pol(r);
-                mul = ((l*fr-r*fl)/(fr-fl));
-                if (BigNumber{(fr-fl)-BigNumber{"1",4,1}}.getSign()==1 || (BigNumber{(fr-fl)-BigNumber{"1",4}}.getSign()==0 ) && mul.getSign()==0) {
-                    r = ((l*fr-r*fl)/(fr-fl));
-                    if (j==4) {
-                        sol.push_back(r);
-                        r.print(1);
-                    }
+        roots.push_back(r);
+    };
+    BigNumber x1 = left;
+    BigNumber f1 = p(x1);
+    for (BigNumber x2 = left + step;
+         BigNumber{right - x2}.getSign() != 1;
+         x2 = x2 + step)
+    {
+        BigNumber f2 = p(x2);
+        if (isZero(f1))
+            addRoot(x1);
+        if (isZero(f2))
+            addRoot(x2);
+        BigNumber prod = f1 * f2;
+        if (prod.getSign() == 1) 
+        {
+            BigNumber l = x1;
+            BigNumber r = x2;
+            for (int i = 0; i < 80; i++)
+            {
+                BigNumber mid = l + (r - l) / BigNumber{"2"};
+                BigNumber fm = p(mid);
+                if (isZero(fm))
+                {
+                    l = r = mid;
+                    break;
                 }
-                else {
-                    l = ((l*fr-r*fl)/(fr-fl));
-                    if (j==4) {
-                        sol.push_back(l);
-                        l.print(1);
-                    }
-                }
+                if (BigNumber{f1 * fm}.getSign() == 1)
+                    r = mid;
+                else
+                    l = mid;
             }
-        } 
+            addRoot(l);
+        }
+        x1 = x2;
+        f1 = f2;
     }
-    return sol;
+    return roots;
 }
 Polynom Polynom::Multyply(BigNumber x) {
     std::vector<BigNumber> poly = polynom;
