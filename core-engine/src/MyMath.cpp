@@ -444,8 +444,7 @@ namespace MyMath {
     }
 }
 
-// ЭТА ФУНКЦИЯ ДОЛЖНА БЫТЬ ВНЕ NAMESPACE
-// Именно её ищет линковщик для Native-lib.cpp
+
 std::string evaluate(const std::string& expression) {
     return MyMath::solve(expression);
 }
