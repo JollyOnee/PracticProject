@@ -193,9 +193,14 @@ int main() {
     Polynom{Polynom({BigNumber{"1"}}).del(Polynom({BigNumber{"1"},BigNumber{"1",0,1}}))}.PolynomPrint();
     Polynom{Polynom({BigNumber{"1"}}).del(Polynom({BigNumber{"1"},BigNumber{"1"}}))}.PolynomPrint();
     std::cout<<std::endl;
-    Polynom{Polynom({BigNumber{"2"},BigNumber{"0"}}).pow(BigNumber{"2"})}.PolynomPrint();
-    Polynom{Polynom({BigNumber{"0"},BigNumber{"2"}}).pow(BigNumber{"2718281828",9})}.PolynomPrint();
+    Polynom{Polynom({BigNumber{"2"},BigNumber{"0"}}).pow(BigNumber{"3"})}.PolynomPrint();
+    Polynom{Polynom({BigNumber{"0"},BigNumber{"2"}}).pow(BigNumber{"27",1})}.PolynomPrint();
     std::cout<<std::endl;
-    //BigNumber res = evaluate("155^(3748)");
-    //res.print(1);
+    Polynom p44 = Polynom{Polynom({BigNumber{"0"},BigNumber{"1"}}).sin()} + Polynom({BigNumber{"1"},BigNumber{"1"}});
+    p44.PolynomPrint();
+    std::vector<BigNumber> solv = p44.Solve();
+    for (int i=0; i<solv.size(); i++) {
+        solv[i].print(0);
+        std::cout<<" ";
+    }
 }

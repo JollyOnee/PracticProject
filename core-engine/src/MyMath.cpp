@@ -112,7 +112,7 @@ BigNumber Polynom::max() {
     return max;
 }
 std::vector<BigNumber> Polynom::Solve() {
-    BigNumber h{"1",2};
+    BigNumber h{"1",1};
     BigNumber minus{"1",0,1};
     BigNumber one{"1"};
     std::vector<BigNumber> poly = polynom;
@@ -128,27 +128,35 @@ std::vector<BigNumber> Polynom::Solve() {
     BigNumber right{"1"};
     for (int i=0; i<poly.size(); i++) {
         if ((poly.size()-1-i) != 0) {
-            left = minus * (max() / poly[poly.size()-1-i] + one);
-            right = (max() / poly[poly.size()-1-i] + one);
+            if (BigNumber{(max() / poly[poly.size()-1-i] + one)-BigNumber{"1000"}}.getSign()==1) left = minus * (max() / poly[poly.size()-1-i] + one);
+            else left = BigNumber{"1000",0,1};
+            if (BigNumber{(max() / poly[poly.size()-1-i] + one)-BigNumber{"1000"}}.getSign()==1) right = (max() / poly[poly.size()-1-i] + one);
+            else right = BigNumber{"1000"};
             break;
         }
     }
     std::vector<BigNumber> sol = {};
-    for (BigNumber i=left-h; BigNumber{right-i}.getSign()==0; i = BigNumber{"1",2}+i) {
-        BigNumber mul{pol(i)*pol(BigNumber{"1",2}+i)};
+    for (BigNumber i=left-h; BigNumber{right-i}.getSign()==0; i = BigNumber{"1",1}+i) {
+        BigNumber mul{pol(i)*pol(BigNumber{"1",1}+i)}; mul.print(1); i.print(1);
         if (mul.getSign()==1) {
-            BigNumber l = i; BigNumber r = BigNumber{"1",2}+i;
-            for (int j=0; j<10; j++) {
+            BigNumber l = i; BigNumber r = BigNumber{"1",1}+i;
+            for (int j=0; j<5; j++) {
                 auto fl = pol(l);
                 auto fr = pol(r);
                 mul = ((l*fr-r*fl)/(fr-fl));
                 if (BigNumber{(fr-fl)-BigNumber{"1",4,1}}.getSign()==1 || (BigNumber{(fr-fl)-BigNumber{"1",4}}.getSign()==0 ) && mul.getSign()==0) {
                     r = ((l*fr-r*fl)/(fr-fl));
-                    if (j==9) sol.push_back(r);
+                    if (j==4) {
+                        sol.push_back(r);
+                        r.print(1);
+                    }
                 }
                 else {
                     l = ((l*fr-r*fl)/(fr-fl));
-                    if (j==9) sol.push_back(l);
+                    if (j==4) {
+                        sol.push_back(l);
+                        l.print(1);
+                    }
                 }
             }
         } 
@@ -187,7 +195,7 @@ Polynom Polynom::sin() {
     Polynom poly2{poly1};
     Polynom power = poly2;
     Polynom sol({BigNumber{"0"}});
-    for (BigNumber i{"1"}; BigNumber{i-BigNumber{"22"}}.getSign()==1; i = i+BigNumber{"2"}) {
+    for (BigNumber i{"1"}; BigNumber{i-BigNumber{"8"}}.getSign()==1; i = i+BigNumber{"2"}) {
         if (BigNumber{(i+BigNumber{"1"})/BigNumber{"4"}}.getPoint()==0) sol = sol + (power.Multyply(BigNumber{"1",0,1}/i.factorial(i)));
         else {
             sol = sol + (power.Multyply(BigNumber{"1"}/i.factorial(i)));
@@ -203,7 +211,7 @@ Polynom Polynom::cos() {
     Polynom poly2{poly1};
     Polynom power({BigNumber{"1"}});
     Polynom sol({BigNumber{"0"}});
-    for (BigNumber i{"0"}; BigNumber{i-BigNumber{"22"}}.getSign()==1; i = i+BigNumber{"2"}) {
+    for (BigNumber i{"0"}; BigNumber{i-BigNumber{"8"}}.getSign()==1; i = i+BigNumber{"2"}) {
         if (BigNumber{(i)/BigNumber{"4"}}.getPoint()==0) sol = sol + (power.Multyply(BigNumber{"1"}/i.factorial(i)));
         else sol = sol + (power.Multyply(BigNumber{"1",0,1}/i.factorial(i)));
         power = power * poly2 * poly2;
@@ -213,16 +221,16 @@ Polynom Polynom::cos() {
 Polynom Polynom::del(const Polynom& denom) {
     std::vector<BigNumber> a = polynom;
     std::vector<BigNumber> b = denom.polynom;
-    std::vector<BigNumber> r(20, BigNumber{"0"});
+    std::vector<BigNumber> r(8, BigNumber{"0"});
     BigNumber b0 = b[0];
     if (BigNumber{b0-BigNumber{"0"}}.getPoint()==0 && BigNumber{b0-BigNumber{"0"}}.getSign()==0&&BigNumber{b0-BigNumber{"1"}}.getSign()==1) {
         return Polynom({BigNumber{"42"}});
     }
     r[0] = a[0] / b0;
-    for (int n = 1; n < 20; n++) {
+    for (int n = 1; n < 8; n++) {
         BigNumber sum{"0"};
         for (int k = 1; k <= n; k++) {
-            if (k < b.size() && (n - k) < 20) {
+            if (k < b.size() && (n - k) < 8) {
                 sum = sum + b[k] * r[n - k];
             }
         }
@@ -268,7 +276,7 @@ void Polynom::Truncate(int max_degree) {
     }
 }
 Polynom Polynom::logn() {
-    const int N = 20;
+    const int N = 8;
     Polynom one({BigNumber{"1"}});
     Polynom two({BigNumber{"2"}});
     Polynom x = *this;
@@ -280,14 +288,14 @@ Polynom Polynom::logn() {
         BigNumber denom = BigNumber{std::to_string(k)};
         BigNumber coeff = BigNumber{"1"} / denom;
         Polynom add = term.Multyply(coeff);
-        add.Truncate(20);
+        add.Truncate(8);
         result = result + add;
-        result.Truncate(20);
+        result.Truncate(8);
         term = term * t * t;
-        term.Truncate(20);
+        term.Truncate(8);
     }
     result = result.Multyply(BigNumber{"2"});
-    result.Truncate(20);
+    result.Truncate(8);
     return result;
 }
 BigNumber Polynom::integral(BigNumber a, BigNumber b) {
@@ -305,21 +313,21 @@ BigNumber Polynom::integral(BigNumber a, BigNumber b) {
     return (h * sum) / BigNumber{"3"};
 }
 Polynom Polynom::pow(BigNumber n) {
-    const int N = 10;
+    const int N = 8;
     Polynom f = *this;
     Polynom ln = Polynom({ n }).logn();
     Polynom A = f*ln;
     Polynom term = Polynom({BigNumber{"1"}});
     Polynom result({BigNumber{"0"}});
-    for (BigNumber k{"0"}; BigNumber{k-BigNumber{"10"}}.getSign()==1; k = k + BigNumber{"1"}) {
+    for (BigNumber k{"0"}; BigNumber{k-BigNumber{"8"}}.getSign()==1; k = k + BigNumber{"1"}) {
         BigNumber denom = BigNumber{"1"}.factorial(k);
         BigNumber coeff = BigNumber{"1"} / denom;
         Polynom add = term.Multyply(coeff);
-        add.Truncate(10);
+        add.Truncate(8);
         result = result + add;
-        result.Truncate(10);
+        result.Truncate(8);
         term = term * A;
-        term.Truncate(10);
+        term.Truncate(8);
     }
     return result;
 }
