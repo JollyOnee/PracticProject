@@ -8,7 +8,6 @@ std::string internal_solve(JNIEnv *env, jstring formula) {
     const char *nativeFormula = env->GetStringUTFChars(formula, nullptr);
     std::string result;
     try {
-        // Вызываем именно evaluate или MyMath::solve
         result = evaluate(std::string(nativeFormula));
     } catch (...) {
         result = "Error";
