@@ -5,8 +5,8 @@
 #include <vector>
 #include <string>
 #include <cctype>
-#include <stdexcept>
 #include <cstring>
+#include <list>
 
 struct Token {
     enum Type { NUMBER, OP } type;
@@ -125,49 +125,77 @@ BigNumber evaluate(const std::string& expr) {
     auto rpn = toRPN(tokens);
     return evalRPN(rpn);
 }
-int test_run() {
-    BigNumber num1{"123", 2};
-    BigNumber num2{"234", 3};
-    for (int i=-5; i<7; i++) {
-        BigNumber num{"123",i};
-        num.ParametrsPrint(); num.print();
-    }
-    for (int i=-5; i<7; i++) {
-        BigNumber num{"1232",i,1};
-        num.ParametrsPrint(); num.print();
-    }
-    num1.setPoint(2); num1.setValue("3754"); num1.setSign(0);
-    num1.ParametrsPrint(); num1.print();
-    num2 = -num1;
-    num2.ParametrsPrint();
-    num2.print();
-    num1.setPoint(2); num1.setValue("1234"); num1.setSign(1);
-    num2.setPoint(2); num2.setValue("998"); num2.setSign(1);
-    num1.print(); num2.print();
-    BigNumber number = num1 + num2;
-    for (int i=0; i<4; i++) {
-        for(int j=0; j<4; j++) {
-            BigNumber nu{"999",i}, nu1{"88",j};
-            nu.print(); nu1.print();
-            BigNumber num = nu + nu1;
-            num.ParametrsPrint(); num.print();
-            std::cout<<std::endl;
-        }
+int main() {
+    BigNumber num1{"123", 2,1};
+    BigNumber num2{"234", 3,0};
+    BigNumber{BigNumber{"2"}/BigNumber{"2"}}.print(1);
+    std::cout<<BigNumber{BigNumber{"4"}/BigNumber{"2"}}.getPoint()<<std::endl;
+    num2.print(1); num1.print(1);
+    BigNumber{num1+num2}.print(1);
+    BigNumber{num1-num2}.print(1);
+    BigNumber{num1*num2}.print(1);
+    BigNumber{num1/num2}.print(1);
+    num1.print(1); num2.print(1);
+    Polynom p1({BigNumber{"1",0,1},BigNumber{"2",0},BigNumber{"8",0},BigNumber{"7",0},BigNumber{"6",0}});
+    Polynom p2({BigNumber{"133",2},BigNumber{"1245",2,1},BigNumber{"000",2}});
+    Polynom p4{p1+p2};
+    Polynom p6{p1-p2};
+    Polynom p8{p2-p1};
+    p1.PolynomPrint(); p2.PolynomPrint(); p4.PolynomPrint(); p6.PolynomPrint(); p8.PolynomPrint();
+    std::cout<<std::endl;
+    p4 = p2 * p1;
+    p4.PolynomPrint();
+    BigNumber res1 = p1(BigNumber{"10"});
+    BigNumber res2 = p2(BigNumber{"1732",2,1});
+    std::cout<<std::endl; p1.PolynomPrint();
+    res1.print(1); res2.print(1);
+    std::cout<<std::endl;
+    BigNumber t = p1.max();
+    BigNumber t2 = p2.max();
+    t.print(1); t2.print(1);
+    std::cout<<std::endl; 
+    Polynom p({BigNumber{"188",2},BigNumber{"77972492",6},BigNumber{"0"},BigNumber{"376",2},BigNumber{"0"},BigNumber{"99",0,1}});
+    p.PolynomPrint();p1.PolynomPrint();
+    p2 = p2 + Polynom({BigNumber{"033",2,1},BigNumber{"1245",2},BigNumber{"1"}}); p2.PolynomPrint(); std::cout<<std::endl;
+    std::vector<BigNumber> sol = p.Solve();
+    std::vector<BigNumber> sol1 = p1.Solve();
+    std::vector<BigNumber> sol2 = p2.Solve();
+    for (int i=0; i<sol.size(); i++) {
+        sol[i].print(0);
+        std::cout<<" ";
     }
     std::cout<<std::endl;
-    number.print();
-    num1.setSign(0);
-    num2.setSign(0);
-    num1.print();
-    num2.print();
-    BigNumber numb = num1 - num2;
-    numb.print();
-    BigNumber numb1 = num1 + num2;
-    numb1.print();
-    BigNumber numb2 = num1 * num2;
-    numb2.print();
-    BigNumber numb3 = num1 / num2;
-    numb3.print();
-    BigNumber res = evaluate("1.2+3*(-4)");
-    res.print();
+    for (int i=0; i<sol1.size(); i++) {
+        sol1[i].print(0);
+        std::cout<<" ";
+    }
+    std::cout<<std::endl;
+    for (int i=0; i<sol2.size(); i++) {
+        sol2[i].print(0);
+        std::cout<<" ";
+    }
+    std::cout<<std::endl;
+    BigNumber{BigNumber{"99"}.factorial(BigNumber{"0"})}.print(1);
+    Polynom{Polynom({BigNumber{"0"},BigNumber{"2"}}).cos()}.PolynomPrint();
+    Polynom{Polynom({BigNumber{"0"},BigNumber{"2"}}).sin()}.PolynomPrint();
+    Polynom{Polynom({BigNumber{"2"},BigNumber{"0"}}).cos()}.PolynomPrint();
+    Polynom{Polynom({BigNumber{"2"},BigNumber{"0"}}).sin()}.PolynomPrint();
+    std::cout<<std::endl;
+    Polynom{Polynom({BigNumber{"2"},BigNumber{"0"}}).tan()}.PolynomPrint();
+    Polynom{Polynom({BigNumber{"0"},BigNumber{"2"}}).tan()}.PolynomPrint();
+    std::cout<<std::endl;
+    Polynom{Polynom({BigNumber{"2"},BigNumber{"0"}}).logn()}.PolynomPrint();
+    Polynom{Polynom({BigNumber{"0"},BigNumber{"2"}}).logn()}.PolynomPrint();
+    std::cout<<std::endl;
+    Polynom({BigNumber{"2"},BigNumber{"0"}}).integral(BigNumber{"123",2,1},BigNumber{"456",1}).print(1);
+    Polynom({BigNumber{"0"},BigNumber{"2"}}).integral(BigNumber{"12",1,1},BigNumber{"45",1}).print(1);
+    std::cout<<std::endl;
+    Polynom{Polynom({BigNumber{"1"}}).del(Polynom({BigNumber{"1"},BigNumber{"1",0,1}}))}.PolynomPrint();
+    Polynom{Polynom({BigNumber{"1"}}).del(Polynom({BigNumber{"1"},BigNumber{"1"}}))}.PolynomPrint();
+    std::cout<<std::endl;
+    Polynom{Polynom({BigNumber{"2"},BigNumber{"0"}}).pow(BigNumber{"2"})}.PolynomPrint();
+    Polynom{Polynom({BigNumber{"0"},BigNumber{"2"}}).pow(BigNumber{"2718281828",9})}.PolynomPrint();
+    std::cout<<std::endl;
+    //BigNumber res = evaluate("155^(3748)");
+    //res.print(1);
 }
