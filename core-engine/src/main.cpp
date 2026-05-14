@@ -181,10 +181,10 @@ int main() {
     Polynom{Polynom({BigNumber{"2"},BigNumber{"0"}}).cos()}.PolynomPrint();
     Polynom{Polynom({BigNumber{"2"},BigNumber{"0"}}).sin()}.PolynomPrint();
     std::cout<<std::endl;
-    Polynom{Polynom({BigNumber{"2"},BigNumber{"0"}}).tan()}.PolynomPrint();
+    Polynom{Polynom({BigNumber{"10"},BigNumber{"0"}}).tan()}.PolynomPrint();
     Polynom{Polynom({BigNumber{"0"},BigNumber{"2"}}).tan()}.PolynomPrint();
     std::cout<<std::endl;
-    Polynom{Polynom({BigNumber{"2"},BigNumber{"0"}}).logn()}.PolynomPrint();
+    Polynom{Polynom({BigNumber{"10"},BigNumber{"0"}}).logn()}.PolynomPrint();
     Polynom{Polynom({BigNumber{"0"},BigNumber{"2"}}).logn()}.PolynomPrint();
     std::cout<<std::endl;
     Polynom({BigNumber{"2"},BigNumber{"0"}}).integral(BigNumber{"123",2,1},BigNumber{"456",1}).print(1);
@@ -196,11 +196,16 @@ int main() {
     Polynom{Polynom({BigNumber{"2"},BigNumber{"0"}}).pow(BigNumber{"3"})}.PolynomPrint();
     Polynom{Polynom({BigNumber{"0"},BigNumber{"2"}}).pow(BigNumber{"27",1})}.PolynomPrint();
     std::cout<<std::endl;
-    Polynom p44 = Polynom{Polynom({BigNumber{"0"},BigNumber{"1"}}).sin()} + Polynom({BigNumber{"1"},BigNumber{"1"}});
+    //Polynom p44 = Polynom{Polynom{Polynom({BigNumber{"0"},BigNumber{"1"}})}.sin()}.cos()+Polynom({BigNumber{"1"},BigNumber{"1"}});
+    Polynom p44 = Polynom({BigNumber{"0"},BigNumber{"0"},BigNumber{"1",0,1},BigNumber{"1"}});
     p44.PolynomPrint();
+    std::cout<<std::endl;
+    std::cout<<std::endl;
     std::vector<BigNumber> solv = p44.Solve();
     for (int i=0; i<solv.size(); i++) {
-        solv[i].print(0);
+        solv[i].print(1);
         std::cout<<" ";
     }
+    //BigNumber res = evaluate("155^(3748)");
+    //res.print(1);
 }
