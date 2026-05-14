@@ -12,10 +12,8 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun App() {
-    // Состояние навигации
     var currentScreen by remember { mutableStateOf("start") }
 
-    // Инициализация архитектурных слоев (MVVM)
     val repository = remember { MathRepository() }
     val viewModel = remember { MathViewModel(repository) }
 
@@ -64,7 +62,14 @@ fun App() {
             "input" -> {
                 MathInputScreen(
                     viewModel = viewModel,
-                    onBack = { currentScreen = "start" }
+                    onBack = { currentScreen = "start" },
+                    onShowGraph = { currentScreen = "graph" }
+                )
+            }
+            "graph" -> {
+                GraphScreen(
+                    viewModel = viewModel,
+                    onBack = { currentScreen = "input" }
                 )
             }
         }

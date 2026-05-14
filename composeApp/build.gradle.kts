@@ -1,6 +1,7 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import com.android.build.api.dsl.ApplicationExtension // Добавляем импорт
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -57,7 +58,8 @@ kotlin {
     }
 }
 
-android {
+// ИСПРАВЛЕНИЕ 1: Используем строго типизированный configure вместо android { ... }
+configure<ApplicationExtension> {
     namespace = "org.infa252.project"
     compileSdk = 36
 
@@ -77,6 +79,7 @@ android {
 
     externalNativeBuild {
         cmake {
+            // ИСПРАВЛЕНИЕ 2: Оборачиваем строку в file(), так как ожидается тип File
             path = file("../core-engine/CMakeLists.txt")
             version = "3.22.1"
         }
@@ -114,4 +117,8 @@ compose.desktop {
             packageVersion = "1.0.0"
         }
     }
+}
+
+tasks.withType<JavaExec> {
+    systemProperty("java.library.path", project.rootDir.absolutePath)
 }

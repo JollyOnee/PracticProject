@@ -27,8 +27,9 @@ import com.hrm.latex.renderer.model.LatexConfig
 @Composable
 fun MathInputScreen(
     viewModel: MathViewModel,
-    onBack: () -> Unit
-) {
+    onBack: () -> Unit,
+    onShowGraph: () -> Unit
+){
     val hScrollState = rememberScrollState()
     val mainScrollState = rememberScrollState()
     val focusRequester = remember { FocusRequester() }
@@ -190,7 +191,10 @@ fun MathInputScreen(
                     MathKeyboard(tab = viewModel.currentTab, onSymbolClick = { viewModel.onSymbolClick(it) })
 
                     Button(
-                        onClick = { viewModel.solveFormula() },
+                        onClick = {
+                            viewModel.solveFormula()
+                            onShowGraph()
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp, vertical = 6.dp)
@@ -199,7 +203,7 @@ fun MathInputScreen(
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                     ) { 
                         Text(
-                            "показать шаги решения", 
+                            "показать график",
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onPrimary
                         ) 
