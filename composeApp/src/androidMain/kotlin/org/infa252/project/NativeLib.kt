@@ -1,22 +1,16 @@
 package org.infa252.project
 
-actual class NativeLib actual constructor() {
-
+actual class NativeLib {
     actual fun calculate(expression: String): String {
-        return try {
-            calculateNative(expression)
-        } catch (e: UnsatisfiedLinkError) {
-            "Error: Native library not loaded"
-        }
+        return calculateNative(expression)
     }
 
+    // Имя должно СТРОГО совпадать с Java_org_infa252_project_NativeLib_calculateNative
     private external fun calculateNative(expression: String): String
 
-    init {
-        try {
+    companion object {
+        init {
             System.loadLibrary("math_solver_lib")
-        } catch (e: UnsatisfiedLinkError) {
-            println("Ошибка загрузки библиотеки: ${e.message}")
         }
     }
 }

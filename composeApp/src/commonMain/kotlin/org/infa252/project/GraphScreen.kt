@@ -20,6 +20,7 @@ import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.infa252.project.MathViewModel
 import kotlin.math.*
 
 @OptIn(ExperimentalMaterial3Api::class)

@@ -1,12 +1,14 @@
 package org.infa252.project
 
+import java.io.File
+
 actual class NativeLib actual constructor() {
 
     actual fun calculate(expression: String): String {
         return try {
             calculateNative(expression)
         } catch (e: UnsatisfiedLinkError) {
-            "Error: Native library not loaded"
+            "Ошибка: DLL не найдена"
         }
     }
 
@@ -14,24 +16,19 @@ actual class NativeLib actual constructor() {
 
     init {
         try {
-            // Пытаемся загрузить из системных путей
-            System.loadLibrary("math_solver_lib")
-        } catch (e: UnsatisfiedLinkError) {
-            try {
-                // Если не вышло, пробуем загрузить из ресурсов (для десктопа)
-                val libName = "libmath_solver_lib.so"
-                val inputStream = NativeLib::class.java.getResourceAsStream("/$libName")
-                if (inputStream != null) {
-                    val tempFile = java.nio.file.Files.createTempFile("math_solver_lib", ".so").toFile()
-                    tempFile.deleteOnExit()
-                    java.nio.file.Files.copy(inputStream, tempFile.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
-                    System.load(tempFile.absolutePath)
-                } else {
-                    println("Ошибка: библиотека $libName не найдена в ресурсах")
-                }
-            } catch (ex: Exception) {
-                println("Ошибка загрузки библиотеки из ресурсов: ${ex.message}")
+            // Ищем DLL в корне проекта (где лежит gradlew)
+            val projectDir = System.getProperty("user.dir")
+            val libFile = File(projectDir, "math_solver_lib.dll")
+
+
+            if (libFile.exists()) {
+                System.load(libFile.absolutePath)
+                println("DLL успешно загружена из: ${libFile.absolutePath}")
+            } else {
+                System.loadLibrary("math_solver_lib")
             }
+        } catch (e: UnsatisfiedLinkError) {
+            println("Не удалось найти библиотеку в корнях проекта.")
         }
     }
 }

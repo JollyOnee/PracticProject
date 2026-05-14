@@ -11,11 +11,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun App() {
+fun App(
+    viewModel: MathViewModel,
+    onOpenCamera: () -> Unit = {}
+) {
     var currentScreen by remember { mutableStateOf("start") }
-
-    val repository = remember { MathRepository() }
-    val viewModel = remember { MathViewModel(repository) }
 
     AppTheme {
         when (currentScreen) {
@@ -39,12 +39,9 @@ fun App() {
                             color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.padding(bottom = 32.dp)
                         )
-
                         Button(
                             onClick = { currentScreen = "input" },
-                            modifier = Modifier
-                                .width(200.dp)
-                                .height(56.dp),
+                            modifier = Modifier.width(200.dp).height(56.dp),
                             shape = MaterialTheme.shapes.large,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primary
@@ -63,7 +60,8 @@ fun App() {
                 MathInputScreen(
                     viewModel = viewModel,
                     onBack = { currentScreen = "start" },
-                    onShowGraph = { currentScreen = "graph" }
+                    onShowGraph = { currentScreen = "graph" },
+                    onOpenCamera = onOpenCamera
                 )
             }
             "graph" -> {

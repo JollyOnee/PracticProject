@@ -350,4 +350,6 @@ public:
     BigNumber integral(BigNumber a, BigNumber b);
     Polynom pow(BigNumber n);
 };
+
+std::string evaluate(const std::string& expression);
 #endif

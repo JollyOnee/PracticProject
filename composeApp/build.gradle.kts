@@ -1,7 +1,6 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import com.android.build.api.dsl.ApplicationExtension // Добавляем импорт
+import com.android.build.api.dsl.ApplicationExtension
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -18,39 +17,41 @@ kotlin {
         }
     }
 
-    jvm()
-
-    js {
-        browser()
-        binaries.executable()
-    }
-
-    @OptIn(ExperimentalWasmDsl::class)
-    wasmJs {
-        browser()
-        binaries.executable()
-    }
+    jvm() // Для Desktop версии
 
     sourceSets {
-        androidMain.dependencies {
-            implementation(libs.compose.uiToolingPreview)
-            implementation(libs.androidx.activity.compose)
+        val androidMain by getting {
+            dependencies {
+                implementation(libs.compose.uiToolingPreview)
+                implementation(libs.androidx.activity.compose)
+
+                // Gemini и CameraX — работают только здесь
+                implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
+                implementation("androidx.camera:camera-camera2:1.3.0")
+                implementation("androidx.camera:camera-lifecycle:1.3.0")
+                implementation("androidx.camera:camera-view:1.3.0")
+            }
         }
+
         commonMain.dependencies {
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
             implementation(libs.compose.ui)
             implementation(libs.compose.components.resources)
-            implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(libs.latex.renderer)
             implementation(libs.compose.icons.extended)
+
+            // Сериализация и Ktor (теперь без конфликтов с JS)
+            implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
+            implementation("io.ktor:ktor-client-core:2.3.11")
+            implementation("io.ktor:ktor-client-cio:2.3.11")
+            implementation("io.ktor:ktor-client-content-negotiation:2.3.11")
+            implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.11")
         }
-        commonTest.dependencies {
-            implementation(libs.kotlin.test)
-        }
+
         jvmMain.dependencies {
             implementation(compose.desktop.currentOs)
             implementation(libs.kotlinx.coroutinesSwing)
@@ -58,7 +59,6 @@ kotlin {
     }
 }
 
-// ИСПРАВЛЕНИЕ 1: Используем строго типизированный configure вместо android { ... }
 configure<ApplicationExtension> {
     namespace = "org.infa252.project"
     compileSdk = 36
@@ -79,7 +79,6 @@ configure<ApplicationExtension> {
 
     externalNativeBuild {
         cmake {
-            // ИСПРАВЛЕНИЕ 2: Оборачиваем строку в file(), так как ожидается тип File
             path = file("../core-engine/CMakeLists.txt")
             version = "3.22.1"
         }
@@ -88,12 +87,6 @@ configure<ApplicationExtension> {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
-        }
-    }
-
-    buildTypes {
-        getByName("release") {
-            isMinifyEnabled = false
         }
     }
 
@@ -110,15 +103,10 @@ dependencies {
 compose.desktop {
     application {
         mainClass = "org.infa252.project.MainKt"
-
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "org.infa252.project"
             packageVersion = "1.0.0"
         }
     }
-}
-
-tasks.withType<JavaExec> {
-    systemProperty("java.library.path", project.rootDir.absolutePath)
 }

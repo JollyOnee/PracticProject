@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -28,8 +29,9 @@ import com.hrm.latex.renderer.model.LatexConfig
 fun MathInputScreen(
     viewModel: MathViewModel,
     onBack: () -> Unit,
-    onShowGraph: () -> Unit
-){
+    onShowGraph: () -> Unit,
+    onOpenCamera: () -> Unit
+) {
     val hScrollState = rememberScrollState()
     val mainScrollState = rememberScrollState()
     val focusRequester = remember { FocusRequester() }
@@ -38,14 +40,12 @@ fun MathInputScreen(
         focusRequester.requestFocus()
     }
 
-    // Визуализация формулы с курсором
     val visualFormula = remember(viewModel.formula, viewModel.cursorIndex) {
         val safeIndex = viewModel.cursorIndex.coerceIn(0, viewModel.formula.length)
         if (viewModel.formula.isEmpty()) "|"
         else StringBuilder(viewModel.formula).insert(safeIndex, "|").toString()
     }
 
-    // Динамический шрифт
     val dynamicFontSize = remember(viewModel.formula.length) {
         when {
             viewModel.formula.length < 15 -> 36.sp
@@ -63,39 +63,14 @@ fun MathInputScreen(
                 if (keyEvent.type == KeyEventType.KeyDown) {
                     val isCtrl = keyEvent.isCtrlPressed
                     when {
-                        isCtrl && keyEvent.key == Key.Z -> {
-                            viewModel.undo()
-                            true
-                        }
-                        isCtrl && keyEvent.key == Key.Y -> {
-                            viewModel.redo()
-                            true
-                        }
-                        keyEvent.key == Key.DirectionLeft -> {
-                            viewModel.moveCursorLeft()
-                            true
-                        }
-                        keyEvent.key == Key.DirectionRight -> {
-                            viewModel.moveCursorRight()
-                            true
-                        }
-                        keyEvent.key == Key.Backspace -> {
-                            viewModel.onDelete()
-                            true
-                        }
-                        keyEvent.key == Key.Enter -> {
-                            viewModel.solveFormula()
-                            true
-                        }
-                        keyEvent.key == Key.Escape -> {
-                            onBack()
-                            true
-                        }
-                        keyEvent.key == Key.Tab -> {
-                            // Logic for Tab jump
-                            viewModel.moveCursorRight() // Currently our smart right arrow handles jumps
-                            true
-                        }
+                        isCtrl && keyEvent.key == Key.Z -> { viewModel.undo(); true }
+                        isCtrl && keyEvent.key == Key.Y -> { viewModel.redo(); true }
+                        keyEvent.key == Key.DirectionLeft -> { viewModel.moveCursorLeft(); true }
+                        keyEvent.key == Key.DirectionRight -> { viewModel.moveCursorRight(); true }
+                        keyEvent.key == Key.Backspace -> { viewModel.onDelete(); true }
+                        keyEvent.key == Key.Enter -> { viewModel.solveFormula(); true }
+                        keyEvent.key == Key.Escape -> { onBack(); true }
+                        keyEvent.key == Key.Tab -> { viewModel.moveCursorRight(); true }
                         else -> {
                             val char = keyEvent.utf16CodePoint.toChar()
                             val symbol = when (char) {
@@ -111,31 +86,36 @@ fun MathInputScreen(
                             if (char.isDigit() || char in "+-*/.(),=x%^_{}[]") {
                                 viewModel.onSymbolClick(symbol)
                                 true
-                            } else {
-                                false
-                            }
+                            } else false
                         }
                     }
-                } else {
-                    false
-                }
+                } else false
             },
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { 
+                title = {
                     Text(
-                        "MathSolver", 
+                        "MathSolver",
                         style = MaterialTheme.typography.headlineLarge,
                         color = MaterialTheme.colorScheme.onSurface
-                    ) 
+                    )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack, 
+                            Icons.AutoMirrored.Filled.ArrowBack,
                             "Back",
                             tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onOpenCamera) {
+                        Icon(
+                            imageVector = Icons.Default.AddAPhoto,
+                            contentDescription = "Camera Scan",
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
                 },
@@ -152,9 +132,8 @@ fun MathInputScreen(
                 shadowElevation = 8.dp
             ) {
                 Column(modifier = Modifier.widthIn(max = 600.dp).padding(bottom = 12.dp, top = 8.dp)) {
-                    // Вкладки
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp), 
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         listOf("±", "f(x)", "sin").forEach { id ->
@@ -167,16 +146,12 @@ fun MathInputScreen(
                                     containerColor = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.surface,
                                     contentColor = if (isSelected) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.onSurface
                                 )
-                            ) { 
-                                Text(
-                                    id,
-                                    style = MaterialTheme.typography.labelLarge
-                                ) 
+                            ) {
+                                Text(id, style = MaterialTheme.typography.labelLarge)
                             }
                         }
                     }
 
-                    // Навигация
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -201,12 +176,12 @@ fun MathInputScreen(
                             .height(50.dp),
                         shape = MaterialTheme.shapes.medium,
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                    ) { 
+                    ) {
                         Text(
                             "показать график",
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onPrimary
-                        ) 
+                        )
                     }
                 }
             }
@@ -231,21 +206,21 @@ fun MathInputScreen(
                 contentAlignment = Alignment.CenterStart
             ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().horizontalScroll(hScrollState), 
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(hScrollState),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Latex(
-                        latex = visualFormula, 
+                        latex = visualFormula,
                         config = LatexConfig(
-                            fontSize = dynamicFontSize, 
+                            fontSize = dynamicFontSize,
                             color = MaterialTheme.colorScheme.background
                         )
                     )
                 }
             }
-            // Отображение сырого Latex для отладки
+
             Card(
-                modifier = Modifier.fillMaxWidth().widthIn(max = 600.dp).padding(top = 10.dp), 
+                modifier = Modifier.fillMaxWidth().widthIn(max = 600.dp).padding(top = 10.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.outlineVariant)
             ) {
                 val clipboardManager = LocalClipboardManager.current
@@ -256,11 +231,11 @@ fun MathInputScreen(
                 ) {
                     Text(
                         text = "Latex: ${viewModel.formula}",
-                        modifier = Modifier.weight(1f).padding(vertical = 10.dp), 
+                        modifier = Modifier.weight(1f).padding(vertical = 10.dp),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    IconButton(onClick = { 
+                    IconButton(onClick = {
                         clipboardManager.setText(AnnotatedString(viewModel.formula))
                     }) {
                         Icon(
@@ -272,7 +247,7 @@ fun MathInputScreen(
                     }
                 }
             }
-            // Поле результата
+
             AppTheme {
                 Box(
                     modifier = Modifier.fillMaxWidth().widthIn(max = 600.dp).padding(top = 16.dp, end = 8.dp),
@@ -305,7 +280,7 @@ fun ControlKey(label: String, modifier: Modifier = Modifier, isAccent: Boolean =
         color = if (isAccent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
     ) {
         Text(
-            text = label, 
+            text = label,
             modifier = Modifier.fillMaxSize().wrapContentHeight(Alignment.CenterVertically),
             style = MaterialTheme.typography.headlineLarge,
             textAlign = TextAlign.Center,
@@ -333,8 +308,9 @@ fun MathKeyboard(tab: String, onSymbolClick: (String) -> Unit) {
                 "lim" to "\\lim_{ \\to }{}"
             )
             "sin" -> listOf(
-                "sin" to "\\sin{}", "cos" to "\\cos{}", "tan" to "\\tan{}", "asin" to "\\arcsin{}", "acos" to "\\arccos{}", "atan" to "\\arctan{}",
-                "sinh" to "\\sinh{}", "cosh" to "\\cosh{}", "tanh" to "\\tanh{}", "rad" to "\\text{rad}", "!" to "!"
+                "sin" to "\\sin{}", "cos" to "\\cos{}", "tan" to "\\tan{}", "asin" to "\\arcsin{}",
+                "acos" to "\\arccos{}", "atan" to "\\arctan{}", "sinh" to "\\sinh{}", "cosh" to "\\cosh{}",
+                "tanh" to "\\tanh{}", "rad" to "\\text{rad}", "!" to "!"
             )
             else -> emptyList()
         }
@@ -356,7 +332,7 @@ fun MathKeyboard(tab: String, onSymbolClick: (String) -> Unit) {
             ) {
                 Box(modifier = Modifier.padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
                     Text(
-                        text = label, 
+                        text = label,
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onSurface
                     )
