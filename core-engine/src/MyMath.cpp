@@ -212,7 +212,7 @@ Polynom Polynom::sin() {
     Polynom poly2{poly1};
     Polynom power = poly2;
     Polynom sol({BigNumber{"0"}});
-    for (BigNumber i{"1"}; BigNumber{i-BigNumber{"8"}}.getSign()==1; i = i+BigNumber{"2"}) {
+    for (BigNumber i{"1"}; BigNumber{i-BigNumber{"12"}}.getSign()==1; i = i+BigNumber{"2"}) {
         if (BigNumber{(i+BigNumber{"1"})/BigNumber{"4"}}.getPoint()==0) sol = sol + (power.Multyply(BigNumber{"1",0,1}/i.factorial(i)));
         else {
             sol = sol + (power.Multyply(BigNumber{"1"}/i.factorial(i)));
@@ -228,7 +228,7 @@ Polynom Polynom::cos() {
     Polynom poly2{poly1};
     Polynom power({BigNumber{"1"}});
     Polynom sol({BigNumber{"0"}});
-    for (BigNumber i{"0"}; BigNumber{i-BigNumber{"8"}}.getSign()==1; i = i+BigNumber{"2"}) {
+    for (BigNumber i{"0"}; BigNumber{i-BigNumber{"12"}}.getSign()==1; i = i+BigNumber{"2"}) {
         if (BigNumber{(i)/BigNumber{"4"}}.getPoint()==0) sol = sol + (power.Multyply(BigNumber{"1"}/i.factorial(i)));
         else sol = sol + (power.Multyply(BigNumber{"1",0,1}/i.factorial(i)));
         power = power * poly2 * poly2;
@@ -238,16 +238,16 @@ Polynom Polynom::cos() {
 Polynom Polynom::del(const Polynom& denom) {
     std::vector<BigNumber> a = polynom;
     std::vector<BigNumber> b = denom.polynom;
-    std::vector<BigNumber> r(8, BigNumber{"0"});
+    std::vector<BigNumber> r(12, BigNumber{"0"});
     BigNumber b0 = b[0];
     if (BigNumber{b0-BigNumber{"0"}}.getPoint()==0 && BigNumber{b0-BigNumber{"0"}}.getSign()==0&&BigNumber{b0-BigNumber{"1"}}.getSign()==1) {
         return Polynom({BigNumber{"42"}});
     }
     r[0] = a[0] / b0;
-    for (int n = 1; n < 8; n++) {
+    for (int n = 1; n < 12; n++) {
         BigNumber sum{"0"};
         for (int k = 1; k <= n; k++) {
-            if (k < b.size() && (n - k) < 8) {
+            if (k < b.size() && (n - k) < 12) {
                 sum = sum + b[k] * r[n - k];
             }
         }
@@ -293,7 +293,7 @@ void Polynom::Truncate(int max_degree) {
     }
 }
 Polynom Polynom::logn() {
-    const int N = 8;
+    const int N = 12;
     Polynom one({BigNumber{"1"}});
     Polynom two({BigNumber{"2"}});
     Polynom x = *this;
@@ -305,14 +305,14 @@ Polynom Polynom::logn() {
         BigNumber denom = BigNumber{std::to_string(k)};
         BigNumber coeff = BigNumber{"1"} / denom;
         Polynom add = term.Multyply(coeff);
-        add.Truncate(8);
+        add.Truncate(12);
         result = result + add;
-        result.Truncate(8);
+        result.Truncate(12);
         term = term * t * t;
-        term.Truncate(8);
+        term.Truncate(12);
     }
     result = result.Multyply(BigNumber{"2"});
-    result.Truncate(8);
+    result.Truncate(12);
     return result;
 }
 BigNumber Polynom::integral(BigNumber a, BigNumber b) {
@@ -330,7 +330,7 @@ BigNumber Polynom::integral(BigNumber a, BigNumber b) {
     return (h * sum) / BigNumber{"3"};
 }
 Polynom Polynom::pow(BigNumber n) {
-    const int N = 8;
+    const int N = 12;
     Polynom f = *this;
     Polynom ln = Polynom({ n }).logn();
     Polynom A = f*ln;
@@ -340,11 +340,11 @@ Polynom Polynom::pow(BigNumber n) {
         BigNumber denom = BigNumber{"1"}.factorial(k);
         BigNumber coeff = BigNumber{"1"} / denom;
         Polynom add = term.Multyply(coeff);
-        add.Truncate(8);
+        add.Truncate(12);
         result = result + add;
-        result.Truncate(8);
+        result.Truncate(12);
         term = term * A;
-        term.Truncate(8);
+        term.Truncate(12);
     }
     return result;
 }
