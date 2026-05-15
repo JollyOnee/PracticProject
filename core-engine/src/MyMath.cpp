@@ -1,8 +1,7 @@
 #include "MyMath.h"
 #include <iostream>
 #include <list>
-
-
+#include <vector>
 
 BigNumber::BigNumber(std::string _value, int _point, bool _sign) {
     point = _point;
@@ -213,7 +212,7 @@ Polynom Polynom::sin() {
     Polynom poly2{poly1};
     Polynom power = poly2;
     Polynom sol({BigNumber{"0"}});
-    for (BigNumber i{"1"}; BigNumber{i-BigNumber{"8"}}.getSign()==1; i = i+BigNumber{"2"}) {
+    for (BigNumber i{"1"}; BigNumber{i-BigNumber{"12"}}.getSign()==1; i = i+BigNumber{"2"}) {
         if (BigNumber{(i+BigNumber{"1"})/BigNumber{"4"}}.getPoint()==0) sol = sol + (power.Multyply(BigNumber{"1",0,1}/i.factorial(i)));
         else {
             sol = sol + (power.Multyply(BigNumber{"1"}/i.factorial(i)));
@@ -229,7 +228,7 @@ Polynom Polynom::cos() {
     Polynom poly2{poly1};
     Polynom power({BigNumber{"1"}});
     Polynom sol({BigNumber{"0"}});
-    for (BigNumber i{"0"}; BigNumber{i-BigNumber{"8"}}.getSign()==1; i = i+BigNumber{"2"}) {
+    for (BigNumber i{"0"}; BigNumber{i-BigNumber{"12"}}.getSign()==1; i = i+BigNumber{"2"}) {
         if (BigNumber{(i)/BigNumber{"4"}}.getPoint()==0) sol = sol + (power.Multyply(BigNumber{"1"}/i.factorial(i)));
         else sol = sol + (power.Multyply(BigNumber{"1",0,1}/i.factorial(i)));
         power = power * poly2 * poly2;
@@ -239,16 +238,16 @@ Polynom Polynom::cos() {
 Polynom Polynom::del(const Polynom& denom) {
     std::vector<BigNumber> a = polynom;
     std::vector<BigNumber> b = denom.polynom;
-    std::vector<BigNumber> r(8, BigNumber{"0"});
+    std::vector<BigNumber> r(12, BigNumber{"0"});
     BigNumber b0 = b[0];
     if (BigNumber{b0-BigNumber{"0"}}.getPoint()==0 && BigNumber{b0-BigNumber{"0"}}.getSign()==0&&BigNumber{b0-BigNumber{"1"}}.getSign()==1) {
         return Polynom({BigNumber{"42"}});
     }
     r[0] = a[0] / b0;
-    for (int n = 1; n < 8; n++) {
+    for (int n = 1; n < 12; n++) {
         BigNumber sum{"0"};
         for (int k = 1; k <= n; k++) {
-            if (k < b.size() && (n - k) < 8) {
+            if (k < b.size() && (n - k) < 12) {
                 sum = sum + b[k] * r[n - k];
             }
         }
@@ -294,7 +293,7 @@ void Polynom::Truncate(int max_degree) {
     }
 }
 Polynom Polynom::logn() {
-    const int N = 8;
+    const int N = 12;
     Polynom one({BigNumber{"1"}});
     Polynom two({BigNumber{"2"}});
     Polynom x = *this;
@@ -306,14 +305,14 @@ Polynom Polynom::logn() {
         BigNumber denom = BigNumber{std::to_string(k)};
         BigNumber coeff = BigNumber{"1"} / denom;
         Polynom add = term.Multyply(coeff);
-        add.Truncate(8);
+        add.Truncate(12);
         result = result + add;
-        result.Truncate(8);
+        result.Truncate(12);
         term = term * t * t;
-        term.Truncate(8);
+        term.Truncate(12);
     }
     result = result.Multyply(BigNumber{"2"});
-    result.Truncate(8);
+    result.Truncate(12);
     return result;
 }
 BigNumber Polynom::integral(BigNumber a, BigNumber b) {
@@ -331,7 +330,7 @@ BigNumber Polynom::integral(BigNumber a, BigNumber b) {
     return (h * sum) / BigNumber{"3"};
 }
 Polynom Polynom::pow(BigNumber n) {
-    const int N = 8;
+    const int N = 12;
     Polynom f = *this;
     Polynom ln = Polynom({ n }).logn();
     Polynom A = f*ln;
@@ -341,136 +340,14 @@ Polynom Polynom::pow(BigNumber n) {
         BigNumber denom = BigNumber{"1"}.factorial(k);
         BigNumber coeff = BigNumber{"1"} / denom;
         Polynom add = term.Multyply(coeff);
-        add.Truncate(8);
+        add.Truncate(12);
         result = result + add;
-        result.Truncate(8);
+        result.Truncate(12);
         term = term * A;
-        term.Truncate(8);
+        term.Truncate(12);
     }
     return result;
 }
 BigNumber BigNumber::percent(BigNumber x) {
     return x * BigNumber{"1",2};
-}
-
-struct Token {
-    enum Type { NUMBER, OP } type;
-    std::string value;
-};
-
-int priority(char op) {
-    if (op == '^') return 3;
-    if (op == '*' || op == '/') return 2;
-    if (op == '+' || op == '-') return 1;
-    return 0;
-}
-
-std::vector<Token> tokenize(const std::string& s) {
-    std::vector<Token> tokens;
-    bool expectNumber = true;
-    for (int i = 0; i < s.size(); i++) {
-        if (isspace(s[i])) continue;
-        if (s[i] == '-' && expectNumber) {
-            std::string num = "-";
-            i++;
-            while (i < s.size() && (isdigit(s[i]) || s[i] == '.')) num += s[i++];
-            i--;
-            tokens.push_back({Token::NUMBER, num});
-            expectNumber = false;
-            continue;
-        }
-        if (isdigit(s[i]) || s[i] == '.') {
-            std::string num;
-            while (i < s.size() && (isdigit(s[i]) || s[i] == '.')) num += s[i++];
-            i--;
-            tokens.push_back({Token::NUMBER, num});
-            expectNumber = false;
-        }
-        else if (std::string("+-*/^()").find(s[i]) != std::string::npos) {
-            tokens.push_back({Token::OP, std::string(1, s[i])});
-            expectNumber = (s[i] == '(' || s[i] == '+' || s[i] == '-' || s[i] == '*' || s[i] == '/' || s[i] == '^');
-        }
-    }
-    return tokens;
-}
-
-std::vector<Token> toRPN(const std::vector<Token>& tokens) {
-    std::vector<Token> output;
-    std::stack<char> ops;
-    for (auto& t : tokens) {
-        if (t.type == Token::NUMBER) {
-            output.push_back(t);
-        } else {
-            char c = t.value[0];
-            if (c == '(') ops.push(c);
-            else if (c == ')') {
-                while (!ops.empty() && ops.top() != '(') {
-                    output.push_back({Token::OP, std::string(1, ops.top())});
-                    ops.pop();
-                }
-                if (!ops.empty()) ops.pop();
-            } else {
-                while (!ops.empty() && priority(ops.top()) >= priority(c)) {
-                    output.push_back({Token::OP, std::string(1, ops.top())});
-                    ops.pop();
-                }
-                ops.push(c);
-            }
-        }
-    }
-    while (!ops.empty()) {
-        output.push_back({Token::OP, std::string(1, ops.top())});
-        ops.pop();
-    }
-    return output;
-}
-
-BigNumber evalRPN(std::vector<Token> rpn) {
-    std::stack<BigNumber> st;
-    for (auto& t : rpn) {
-        if (t.type == Token::NUMBER) {
-            std::string val = t.value;
-            int sign = 0, point = 0;
-            if (!val.empty() && val[0] == '-') { sign = 1; val = val.substr(1); }
-            size_t dotPos = val.find('.');
-            if (dotPos != std::string::npos) {
-                point = val.length() - 1 - dotPos;
-                val.erase(dotPos, 1);
-            }
-            st.push(BigNumber(val, point, sign));
-        } else {
-            if (st.size() < 2) continue;
-            BigNumber b = st.top(); st.pop();
-            BigNumber a = st.top(); st.pop();
-            char op = t.value[0];
-            if (op == '+') st.push(a + b);
-            else if (op == '-') st.push(a - b);
-            else if (op == '*') st.push(a * b);
-            else if (op == '/') st.push(a / b);
-            else if (op == '^') st.push(a ^ b);
-        }
-    }
-    return st.empty() ? BigNumber("0") : st.top();
-}
-
-// ... весь код парсера (tokenize, toRPN, evalRPN) ...
-
-namespace MyMath {
-    std::string solve(const std::string& expression) {
-        try {
-            auto tokens = tokenize(expression);
-            auto rpn = toRPN(tokens);
-            BigNumber result = evalRPN(rpn);
-
-            // Возвращаем строковое представление значения
-            return result.getValue();
-        } catch (...) {
-            return "Error in calculation";
-        }
-    }
-}
-
-
-std::string evaluate(const std::string& expression) {
-    return MyMath::solve(expression);
 }
