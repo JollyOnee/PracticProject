@@ -11,6 +11,12 @@ class MathViewModel(private val repository: MathRepository) : ViewModel() {
     var currentTab by mutableStateOf("±")
     var result by mutableStateOf("")
 
+    // Список переменных (например, x = 5)
+    var variables = mutableStateMapOf<String, String>()
+    
+    // Какая переменная сейчас в фокусе (null если формула)
+    var activeVariable by mutableStateOf<String?>(null)
+
     // История для Undo/Redo
     private val history = mutableListOf<Pair<String, Int>>()
     private var historyIndex = -1
@@ -50,6 +56,14 @@ class MathViewModel(private val repository: MathRepository) : ViewModel() {
 
     // Логика вставки символа
     fun onSymbolClick(symbol: String) {
+        val active = activeVariable
+        if (active != null) {
+            val current = variables[active] ?: ""
+            variables[active] = current + symbol
+            solveFormula()
+            return
+        }
+
         if (formula.length >= 290) return
 
         // Prevent multiple decimal points in a single number
@@ -116,6 +130,16 @@ class MathViewModel(private val repository: MathRepository) : ViewModel() {
     }
 
     fun onDelete() {
+        val active = activeVariable
+        if (active != null) {
+            val current = variables[active] ?: ""
+            if (current.isNotEmpty()) {
+                variables[active] = current.dropLast(1)
+                solveFormula()
+            }
+            return
+        }
+
         if (cursorIndex > 0) {
             val sb = StringBuilder(formula)
             
@@ -224,6 +248,16 @@ class MathViewModel(private val repository: MathRepository) : ViewModel() {
     }
 
     fun solveFormula() {
-        result = repository.solve(formula)
+        result = repository.solve(formula, variables)
+    }
+
+    fun setVariable(name: String, value: String) {
+        variables[name] = value
+        solveFormula()
+    }
+
+    fun removeVariable(name: String) {
+        variables.remove(name)
+        solveFormula()
     }
 }

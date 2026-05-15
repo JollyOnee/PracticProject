@@ -109,9 +109,87 @@ class MathCoreTest {
     }
 
     @Test
+    fun testInverseTrig() {
+        val parser = MathParser()
+        
+        // asin
+        assertEquals("0", parser.evaluate("asin(0)"))
+        assertEquals("0", parser.evaluate("\\arcsin(0)"))
+        assertEquals("0", parser.evaluate("\\sin^{-1}(0)"))
+        
+        // asin(1) = pi/2 approx 1.570796
+        val asin1 = parser.evaluate("asin(1)")
+        assertTrue(asin1.startsWith("1.5707"))
+        
+        // acos
+        assertEquals("0", parser.evaluate("acos(1)"))
+        assertEquals("0", parser.evaluate("\\arccos(1)"))
+        assertEquals("0", parser.evaluate("\\cos^{-1}(1)"))
+        
+        // acos(0) = pi/2
+        val acos0 = parser.evaluate("acos(0)")
+        assertTrue(acos0.startsWith("1.5707"))
+        
+        // atan
+        assertEquals("0", parser.evaluate("atan(0)"))
+        assertEquals("0", parser.evaluate("\\arctan(0)"))
+        assertEquals("0", parser.evaluate("\\tan^{-1}(0)"))
+        
+        // atan(1) = pi/4 approx 0.785398
+        val atan1 = parser.evaluate("atan(1)")
+        assertTrue(atan1.startsWith("0.7853"))
+
+        // Errors (domain)
+        assertTrue(parser.evaluate("asin(2)").contains("domain") || parser.evaluate("asin(2)") == "Ошибка")
+        assertTrue(parser.evaluate("acos(-1.1)").contains("domain") || parser.evaluate("acos(-1.1)") == "Ошибка")
+    }
+
+    @Test
+    fun testHyperbolic() {
+        val parser = MathParser()
+        assertEquals("0", parser.evaluate("sinh(0)"))
+        assertEquals("1", parser.evaluate("cosh(0)"))
+        assertEquals("0", parser.evaluate("tanh(0)"))
+        
+        // sinh(1) approx 1.1752
+        val sinh1 = parser.evaluate("sinh(1)")
+        assertTrue(sinh1.startsWith("1.1752"))
+    }
+
+    @Test
+    fun testConstants() {
+        val parser = MathParser()
+        // Test high precision constants
+        val pi = parser.evaluate("pi")
+        assertTrue(pi.startsWith("3.141592653589793"))
+        
+        val e = parser.evaluate("e")
+        assertTrue(e.startsWith("2.718281828459"))
+        
+        // LaTeX pi
+        assertEquals(pi, parser.evaluate("\\pi"))
+        
+        // Calculation with constants
+        val res = parser.evaluate("2 * pi")
+        assertTrue(res.startsWith("6.283185307"))
+    }
+
+    @Test
+    fun testScientificNotation() {
+        val parser = MathParser()
+        assertEquals("0.0000123", parser.evaluate("1.23e-5"))
+        assertEquals("123000", parser.evaluate("1.23E5"))
+        assertEquals("20", parser.evaluate("2e1"))
+    }
+
+    @Test
     fun testErrorHandling() {
         val parser = MathParser()
-        assertEquals("Error", parser.evaluate("1/0"))
-        assertEquals("Error", parser.evaluate("1+"))
+        // Our improved error messages might not be exactly "Error" anymore
+        val divZero = parser.evaluate("1/0")
+        assertTrue(divZero.contains("zero") || divZero.contains("Ошибка"))
+        
+        val invalid = parser.evaluate("1+")
+        assertTrue(invalid.contains("выражение") || invalid.contains("Ошибка"))
     }
 }

@@ -2,19 +2,28 @@ package org.infa252.project
 
 class MathParser {
 
-    enum class TokenType { NUMBER, OP, LPAREN, RPAREN, FUNCTION, POSTFIX }
+    enum class TokenType { NUMBER, OP, LPAREN, RPAREN, FUNCTION, POSTFIX, VARIABLE }
     data class Token(val type: TokenType, val value: String)
 
     private fun priority(op: String): Int = when (op) {
         "!" -> 5
-        "sqrt", "sin", "cos", "tan", "ln", "log", "asin", "acos", "atan" -> 4
+        "sqrt", "sin", "cos", "tan", "ln", "log", "asin", "acos", "atan", "abs", "exp",
+        "sinh", "cosh", "tanh" -> 4
         "^" -> 3
         "*", "/" -> 2
         "+", "-" -> 1
         else -> 0
     }
 
-    private val functions = setOf("sqrt", "sin", "cos", "tan", "ln", "log", "asin", "acos", "atan", "abs", "exp")
+    private val functions = setOf(
+        "sqrt", "sin", "cos", "tan", "ln", "log", "asin", "acos", "atan", "abs", "exp",
+        "fact", "floor", "ceil", "round", "sinh", "cosh", "tanh", "root"
+    )
+
+    private val constants = mapOf(
+        "pi" to "3.14159265358979323846",
+        "e" to "2.71828182845904523536"
+    )
 
     fun tokenize(s: String): List<Token> {
         val tokens = mutableListOf<Token>()
@@ -23,7 +32,7 @@ class MathParser {
         
         while (i < s.length) {
             val c = s[i]
-            if (c.isWhitespace()) {
+            if (c.isWhitespace() || c == ',') {
                 i++
                 continue
             }
@@ -33,6 +42,12 @@ class MathParser {
                 i++
                 while (i < s.length && (s[i].isDigit() || s[i] == '.')) {
                     sb.append(s[i++])
+                }
+                // Handle scientific notation like -1.2e-5
+                if (i < s.length && (s[i] == 'e' || s[i] == 'E')) {
+                    sb.append(s[i++])
+                    if (i < s.length && (s[i] == '+' || s[i] == '-')) sb.append(s[i++])
+                    while (i < s.length && s[i].isDigit()) sb.append(s[i++])
                 }
                 tokens.add(Token(TokenType.NUMBER, sb.toString()))
                 expectNumber = false
@@ -44,6 +59,17 @@ class MathParser {
                 while (i < s.length && (s[i].isDigit() || s[i] == '.')) {
                     sb.append(s[i++])
                 }
+                // Handle scientific notation like 1.2e5
+                if (i < s.length && (s[i] == 'e' || s[i] == 'E')) {
+                    // Check if it's a number followed by 'e' (like 2e) or scientific notation
+                    // If next is digit or +/- then it's scientific
+                    val next = if (i + 1 < s.length) s[i+1] else ' '
+                    if (next.isDigit() || next == '+' || next == '-') {
+                        sb.append(s[i++])
+                        if (i < s.length && (s[i] == '+' || s[i] == '-')) sb.append(s[i++])
+                        while (i < s.length && s[i].isDigit()) sb.append(s[i++])
+                    }
+                }
                 tokens.add(Token(TokenType.NUMBER, sb.toString()))
                 expectNumber = false
             } else if (c.isLetter()) {
@@ -54,8 +80,12 @@ class MathParser {
                 val name = sb.toString()
                 if (functions.contains(name)) {
                     tokens.add(Token(TokenType.FUNCTION, name))
+                    expectNumber = true
+                } else {
+                    // Treat single letters as variables, multi-letter names as variables too if not functions
+                    tokens.add(Token(TokenType.VARIABLE, name))
+                    expectNumber = false
                 }
-                expectNumber = true
             } else if ("+-*/^()!".contains(c)) {
                 val type = when (c) {
                     '(' -> TokenType.LPAREN
@@ -70,7 +100,38 @@ class MathParser {
                 i++ // Ignore unknown
             }
         }
-        return tokens
+        return insertImplicitMultiplication(tokens)
+    }
+
+    private fun insertImplicitMultiplication(tokens: List<Token>): List<Token> {
+        if (tokens.isEmpty()) return tokens
+        val result = mutableListOf<Token>()
+        result.add(tokens[0])
+        for (i in 1 until tokens.size) {
+            val prev = tokens[i - 1]
+            val curr = tokens[i]
+
+            val needsMult = when {
+                prev.type == TokenType.NUMBER && curr.type == TokenType.VARIABLE -> true
+                prev.type == TokenType.NUMBER && curr.type == TokenType.LPAREN -> true
+                prev.type == TokenType.NUMBER && curr.type == TokenType.FUNCTION -> true
+                prev.type == TokenType.VARIABLE && curr.type == TokenType.VARIABLE -> true
+                prev.type == TokenType.VARIABLE && curr.type == TokenType.LPAREN -> true
+                prev.type == TokenType.VARIABLE && curr.type == TokenType.FUNCTION -> true
+                prev.type == TokenType.RPAREN && curr.type == TokenType.NUMBER -> true
+                prev.type == TokenType.RPAREN && curr.type == TokenType.VARIABLE -> true
+                prev.type == TokenType.RPAREN && curr.type == TokenType.LPAREN -> true
+                prev.type == TokenType.POSTFIX && curr.type == TokenType.NUMBER -> true
+                prev.type == TokenType.POSTFIX && curr.type == TokenType.VARIABLE -> true
+                else -> false
+            }
+
+            if (needsMult) {
+                result.add(Token(TokenType.OP, "*"))
+            }
+            result.add(curr)
+        }
+        return result
     }
 
     fun toRPN(tokens: List<Token>): List<Token> {
@@ -79,8 +140,7 @@ class MathParser {
         
         for (t in tokens) {
             when (t.type) {
-                TokenType.NUMBER -> output.add(t)
-                TokenType.POSTFIX -> output.add(t) // Postfix operators go directly to output in simple cases
+                TokenType.NUMBER, TokenType.VARIABLE, TokenType.POSTFIX -> output.add(t)
                 TokenType.FUNCTION -> {
                     while (ops.isNotEmpty() && ops.last().value != "(" && priority(ops.last().value) >= priority(t.value)) {
                         output.add(ops.removeAt(ops.size - 1))
@@ -111,65 +171,115 @@ class MathParser {
         return output
     }
 
-    fun evalRPN(rpn: List<Token>): BigNumber {
+    fun evalRPN(rpn: List<Token>, variables: Map<String, BigNumber> = emptyMap()): BigNumber {
         val stack = mutableListOf<BigNumber>()
         for (t in rpn) {
-            when (t.type) {
-                TokenType.NUMBER -> {
-                    stack.add(BigNumber.fromString(t.value))
-                }
-                TokenType.FUNCTION -> {
-                    if (stack.isEmpty()) throw IllegalArgumentException("Insufficient operands for ${t.value}")
-                    val a = stack.removeAt(stack.size - 1)
-                    val res = when (t.value) {
-                        "sqrt" -> a.sqrt()
-                        "sin" -> a.sin()
-                        "cos" -> a.cos()
-                        "tan" -> a.tan()
-                        "ln" -> a.ln()
-                        "log" -> a.log10()
-                        "asin" -> a.asin()
-                        "acos" -> a.acos()
-                        "atan" -> a.atan()
-                        "abs" -> a.abs()
-                        "exp" -> a.exp()
-                        else -> throw IllegalArgumentException("Unknown function: ${t.value}")
+            try {
+                when (t.type) {
+                    TokenType.NUMBER -> stack.add(BigNumber.fromString(t.value))
+                    TokenType.VARIABLE -> {
+                        val value = variables[t.value] 
+                            ?: constants[t.value.lowercase()]?.let { BigNumber.fromString(it) }
+                            ?: throw IllegalArgumentException("Переменная ${t.value} не определена")
+                        stack.add(value)
                     }
-                    stack.add(res)
-                }
-                TokenType.POSTFIX -> {
-                    if (stack.isEmpty()) throw IllegalArgumentException("Insufficient operands for ${t.value}")
-                    val a = stack.removeAt(stack.size - 1)
-                    val res = when (t.value) {
-                        "!" -> a.factorial()
-                        else -> throw IllegalArgumentException("Unknown postfix: ${t.value}")
+                    TokenType.FUNCTION -> {
+                        if (stack.isEmpty()) throw IllegalArgumentException("Недостаточно данных для ${t.value}")
+                        
+                        val res = when (t.value) {
+                            "log" -> {
+                                if (stack.size >= 2) {
+                                    val valToLog = stack.removeAt(stack.size - 1)
+                                    val base = stack.removeAt(stack.size - 1)
+                                    valToLog.ln() / base.ln()
+                                } else {
+                                    stack.removeAt(stack.size - 1).log10()
+                                }
+                            }
+                            "root" -> {
+                                if (stack.size < 2) throw IllegalArgumentException("root требует 2 аргумента")
+                                val n = stack.removeAt(stack.size - 1)
+                                val x = stack.removeAt(stack.size - 1)
+                                x.pow(BigNumber("1") / n)
+                            }
+                            "sqrt" -> stack.removeAt(stack.size - 1).sqrt()
+                            "sin" -> stack.removeAt(stack.size - 1).sin()
+                            "cos" -> stack.removeAt(stack.size - 1).cos()
+                            "tan" -> stack.removeAt(stack.size - 1).tan()
+                            "ln" -> stack.removeAt(stack.size - 1).ln()
+                            "asin" -> stack.removeAt(stack.size - 1).asin()
+                            "acos" -> stack.removeAt(stack.size - 1).acos()
+                            "atan" -> stack.removeAt(stack.size - 1).atan()
+                            "abs" -> stack.removeAt(stack.size - 1).abs()
+                            "exp" -> stack.removeAt(stack.size - 1).exp()
+                            "fact" -> stack.removeAt(stack.size - 1).factorial()
+                            "floor" -> stack.removeAt(stack.size - 1).floor()
+                            "ceil" -> stack.removeAt(stack.size - 1).ceil()
+                            "round" -> stack.removeAt(stack.size - 1).round()
+                            "sinh" -> stack.removeAt(stack.size - 1).sinh()
+                            "cosh" -> stack.removeAt(stack.size - 1).cosh()
+                            "tanh" -> stack.removeAt(stack.size - 1).tanh()
+                            else -> throw IllegalArgumentException("Функция ${t.value} не поддерживается")
+                        }
+                        stack.add(res)
                     }
-                    stack.add(res)
-                }
-                TokenType.OP -> {
-                    if (stack.size < 2) throw IllegalArgumentException("Insufficient operands for ${t.value}")
-                    val b = stack.removeAt(stack.size - 1)
-                    val a = stack.removeAt(stack.size - 1)
-                    val res = when (t.value) {
-                        "+" -> a + b
-                        "-" -> a - b
-                        "*" -> a * b
-                        "/" -> a / b
-                        "^" -> a.pow(b)
-                        else -> throw IllegalArgumentException("Unknown op: ${t.value}")
+                    TokenType.POSTFIX -> {
+                        if (stack.isEmpty()) throw IllegalArgumentException("Ошибка в операторе !")
+                        val a = stack.removeAt(stack.size - 1)
+                        stack.add(a.factorial())
                     }
-                    stack.add(res)
+                    TokenType.OP -> {
+                        if (stack.size < 2) throw IllegalArgumentException("Ошибка в операции ${t.value}")
+                        val b = stack.removeAt(stack.size - 1)
+                        val a = stack.removeAt(stack.size - 1)
+                        val res = when (t.value) {
+                            "+" -> a + b
+                            "-" -> a - b
+                            "*" -> a * b
+                            "/" -> a / b
+                            "^" -> a.pow(b)
+                            "%" -> a % b
+                            else -> throw IllegalArgumentException("Оператор ${t.value} не поддерживается")
+                        }
+                        stack.add(res)
+                    }
+                    else -> {}
                 }
-                else -> {}
+            } catch (e: ArithmeticException) {
+                throw e
+            } catch (e: Exception) {
+                throw IllegalArgumentException(e.message ?: "Ошибка вычисления")
             }
         }
-        if (stack.size != 1) throw IllegalArgumentException("Invalid expression")
+        if (stack.size != 1) throw IllegalArgumentException("Неверное выражение")
         return stack.last()
+    }
+
+    private fun getBalancedContent(s: String, startIndex: Int, open: Char, close: Char): Pair<String, Int>? {
+        var count = 0
+        var foundOpen = false
+        var start = -1
+        
+        for (i in startIndex until s.length) {
+            if (s[i] == open) {
+                if (!foundOpen) {
+                    foundOpen = true
+                    start = i
+                }
+                count++
+            } else if (s[i] == close) {
+                count--
+                if (count == 0 && foundOpen) {
+                    return s.substring(start + 1, i) to i
+                }
+            }
+        }
+        return null
     }
 
     fun parseLatex(latex: String): String {
         var s = latex
-            .replace("\\pi", "3.14159")
+            .replace("\\pi", "pi")
             .replace("\\cdot", "*")
             .replace("\\times", "*")
             .replace("\\div", "/")
@@ -185,10 +295,49 @@ class MathParser {
             .replace("\\sin^{-1}", "asin")
             .replace("\\cos^{-1}", "acos")
             .replace("\\tan^{-1}", "atan")
-            .replace("\\abs", "abs")
-            .replace("\\exp", "exp")
+            .replace("\\left(", "(")
+            .replace("\\right)", ")")
+            .replace("\\left[", "(")
+            .replace("\\right]", ")")
+            .replace("\\left|", "|")
+            .replace("\\right|", "|")
+
+        // 0. Handle \log_{base}{value} -> log(base, value)
+        while (s.contains("\\log_{")) {
+            val start = s.indexOf("\\log_{")
+            val basePart = getBalancedContent(s, start + 5, '{', '}') ?: break
+            val valPart = getBalancedContent(s, basePart.second + 1, '{', '}') ?: break
+            s = s.substring(0, start) + "log(${basePart.first}, ${valPart.first})" + s.substring(valPart.second + 1)
+        }
+
+        // 1. Handle \sqrt[n]{x} -> root(x, n)
+        while (s.contains("\\sqrt[")) {
+            val start = s.indexOf("\\sqrt[")
+            val nPart = getBalancedContent(s, start + 5, '[', ']') ?: break
+            val xPart = getBalancedContent(s, nPart.second + 1, '{', '}') ?: break
             
-        // Replace |x| with abs(x)
+            val n = nPart.first
+            val x = xPart.first
+            s = s.substring(0, start) + "root($x, $n)" + s.substring(xPart.second + 1)
+        }
+
+        // 2. Handle \frac{a}{b} -> (a)/(b)
+        while (s.contains("\\frac")) {
+            val start = s.indexOf("\\frac")
+            val first = getBalancedContent(s, start + 5, '{', '}') ?: break
+            val second = getBalancedContent(s, first.second + 1, '{', '}') ?: break
+            
+            s = s.substring(0, start) + "(${first.first})/(${second.first})" + s.substring(second.second + 1)
+        }
+
+        // 3. Handle \sqrt{x} -> sqrt(x)
+        while (s.contains("\\sqrt")) {
+            val start = s.indexOf("\\sqrt")
+            val content = getBalancedContent(s, start + 5, '{', '}') ?: break
+            s = s.substring(0, start) + "sqrt(${content.first})" + s.substring(content.second + 1)
+        }
+
+        // 4. Replace |x| with abs(x)
         val sb = StringBuilder()
         var openAbs = false
         for (char in s) {
@@ -206,92 +355,23 @@ class MathParser {
         }
         s = sb.toString()
 
-        // Replace brackets BEFORE anything else
+        // 5. Replace remaining {} and []
         s = s.replace("{", "(").replace("}", ")").replace("[", "(").replace("]", ")")
 
-        // Handle \sqrt[n](x) -> (x)^(1/n)
-        while (s.contains("\\sqrt(")) { // After bracket replacement it's \sqrt(
-             break // simplified for now to avoid hang
-        }
-
-        // Handle \frac(a)(b) -> (a)/(b)
-        while (s.contains("\\frac")) {
-            val index = s.indexOf("\\frac")
-            var count: Int
-            var firstStart: Int
-            var firstEnd = -1
-            var secondStart: Int
-            var secondEnd = -1
-            
-            // Find first ( )
-            var i = index + 5
-            while (i < s.length && s[i] != '(') i++
-            firstStart = i
-            if (i < s.length) {
-                count = 1
-                i++
-                while (i < s.length && count > 0) {
-                    if (s[i] == '(') count++
-                    else if (s[i] == ')') count--
-                    i++
-                }
-                firstEnd = i - 1
-            }
-            
-            // Find second ( )
-            while (i < s.length && s[i] != '(') i++
-            secondStart = i
-            if (i < s.length) {
-                count = 1
-                i++
-                while (i < s.length && count > 0) {
-                    if (s[i] == '(') count++
-                    else if (s[i] == ')') count--
-                    i++
-                }
-                secondEnd = i - 1
-            }
-            
-            if (firstEnd != -1 && secondEnd != -1) {
-                val first = s.substring(firstStart, firstEnd + 1)
-                val second = s.substring(secondStart, secondEnd + 1)
-                s = s.substring(0, index) + "($first)/($second)" + s.substring(secondEnd + 1)
-            } else {
-                s = s.replaceFirst("\\frac", "") // avoid infinite loop
-            }
-        }
-
-        // Handle \sqrt(x) -> sqrt(x)
-        while (s.contains("\\sqrt")) {
-            val index = s.indexOf("\\sqrt")
-            var i = index + 5
-            while (i < s.length && s[i] != '(') i++
-            if (i < s.length) {
-                var count = 1
-                val start = i
-                i++
-                while (i < s.length && count > 0) {
-                    if (s[i] == '(') count++
-                    else if (s[i] == ')') count--
-                    i++
-                }
-                val end = i - 1
-                val content = s.substring(start, end + 1)
-                s = s.substring(0, index) + "sqrt$content" + s.substring(end + 1)
-            } else {
-                s = s.replaceFirst("\\sqrt", "sqrt")
-            }
-        }
-
+        // 6. Final cleanup of LaTeX commands
         return s.replace("\\", "")
+            .replace("asin", "asin") // ensure correct names for parser
+            .replace("acos", "acos")
+            .replace("atan", "atan")
     }
 
-    fun evaluate(expression: String): String {
+    fun evaluate(expression: String, variables: Map<String, String> = emptyMap()): String {
         return try {
             val latexHandled = parseLatex(expression)
             val tokens = tokenize(latexHandled)
             val rpn = toRPN(tokens)
-            var res = evalRPN(rpn).toString()
+            val varMap = variables.mapValues { BigNumber.fromString(it.value) }
+            var res = evalRPN(rpn, varMap).toString()
             
             // Post-processing for rounding artifacts from fractional powers (Double conversion artifacts)
             if (res.contains(".")) {
@@ -316,8 +396,12 @@ class MathParser {
                  }
             }
             res
+        } catch (e: ArithmeticException) {
+            e.message ?: "Ошибка вычисления"
+        } catch (e: IllegalArgumentException) {
+            e.message ?: "Ошибка"
         } catch (e: Exception) {
-            "Error"
+            "Ошибка"
         }
     }
 }

@@ -208,17 +208,23 @@ class BigNumber {
     fun pow(exp: BigNumber): BigNumber {
         if (exp.value == "0") return BigNumber("1", 0, false)
         
-        // If exponent is fractional
+        // 1. Handle negative exponent: x^-n = 1 / x^n
+        if (exp.sign) {
+            val positiveExp = BigNumber(exp)
+            positiveExp.sign = false
+            return BigNumber("1") / this.pow(positiveExp)
+        }
+        
+        // 2. Handle fractional exponent: x^0.5, etc.
         if (exp.point != 0) {
             if (this.sign) throw ArithmeticException("Negative base with fractional exponent")
             val doubleBase = this.toString().toDoubleOrNull() ?: 0.0
             val doubleExp = exp.toString().toDoubleOrNull() ?: 0.0
-            // Using exp(y * ln(x)) as a workaround for commonMain pow
+            // Workaround for missing Double.pow() in common code
             return fromString(kotlin.math.exp(doubleExp * kotlin.math.log(doubleBase, kotlin.math.E)).toString())
         }
 
-        if (exp.sign) throw ArithmeticException("Negative exponent not supported for integers via this method")
-
+        // 3. Integer exponent (standard binary exponentiation)
         var base = BigNumber(this)
         var exponentStr = exp.value
         var res = BigNumber("1", 0, false)
@@ -314,6 +320,67 @@ class BigNumber {
         return fromString(kotlin.math.atan(doubleVal).toString())
     }
 
+    fun sinh(): BigNumber {
+        val doubleVal = this.toString().toDoubleOrNull() ?: 0.0
+        return fromString(kotlin.math.sinh(doubleVal).toString())
+    }
+
+    fun cosh(): BigNumber {
+        val doubleVal = this.toString().toDoubleOrNull() ?: 0.0
+        return fromString(kotlin.math.cosh(doubleVal).toString())
+    }
+
+    fun tanh(): BigNumber {
+        val doubleVal = this.toString().toDoubleOrNull() ?: 0.0
+        return fromString(kotlin.math.tanh(doubleVal).toString())
+    }
+
+    operator fun rem(other: BigNumber): BigNumber {
+        if (other.value == "0") throw ArithmeticException("Division by zero")
+        val quotient = this / other
+        val integerQuotient = quotient.floor()
+        return this - (integerQuotient * other)
+    }
+
+    fun floor(): BigNumber {
+        if (point == 0) return BigNumber(this)
+        val dotPos = value.length - point
+        val intPart = if (dotPos <= 0) "0" else value.substring(0, dotPos)
+        
+        if (sign) {
+            // For negative numbers, floor is different: floor(-1.2) = -2
+            val hasFrac = value.substring(max(0, dotPos)).any { it != '0' }
+            return if (hasFrac) {
+                BigNumber(intPart, 0, true) + BigNumber("1", 0, true)
+            } else {
+                BigNumber(intPart, 0, true)
+            }
+        }
+        return BigNumber(intPart, 0, false)
+    }
+
+    fun ceil(): BigNumber {
+        if (point == 0) return BigNumber(this)
+        val dotPos = value.length - point
+        val intPart = if (dotPos <= 0) "0" else value.substring(0, dotPos)
+
+        if (sign) {
+            return BigNumber(intPart, 0, true)
+        } else {
+            val hasFrac = value.substring(max(0, dotPos)).any { it != '0' }
+            return if (hasFrac) {
+                BigNumber(intPart, 0, false) + BigNumber("1", 0, false)
+            } else {
+                BigNumber(intPart, 0, false)
+            }
+        }
+    }
+
+    fun round(): BigNumber {
+        if (point == 0) return BigNumber(this)
+        return (this + BigNumber("5", 1, sign)).floor()
+    }
+
     fun abs(): BigNumber {
         val res = BigNumber(this)
         res.sign = false
@@ -378,6 +445,43 @@ class BigNumber {
     override fun toString(): String = toStringRepresentation()
 
     companion object {
+        private fun formatDoubleToFixed(d: Double): String {
+            if (d == 0.0) return "0"
+            if (d.isNaN() || d.isInfinite()) return "0"
+            
+            // Very simple fixed-point conversion to avoid scientific notation
+            val s = d.toString().lowercase()
+            if (!s.contains('e')) return s
+            
+            val parts = s.split('e')
+            val base = parts[0]
+            val exp = parts[1].toInt()
+            
+            val baseNoDot = base.replace(".", "").replace("-", "")
+            val isNeg = base.startsWith("-")
+            val dotIndex = base.indexOf('.')
+            val originalPrecision = if (dotIndex == -1) 0 else base.length - dotIndex - 1
+            
+            val sb = StringBuilder()
+            if (isNeg) sb.append("-")
+            
+            if (exp > 0) {
+                sb.append(baseNoDot)
+                val zerosToAdd = exp - originalPrecision
+                if (zerosToAdd > 0) {
+                    repeat(zerosToAdd) { sb.append('0') }
+                } else if (zerosToAdd < 0) {
+                    sb.insert(sb.length + zerosToAdd + (if (isNeg) 1 else 0), '.')
+                }
+            } else {
+                sb.append("0.")
+                repeat(-exp - 1) { sb.append('0') }
+                sb.append(baseNoDot)
+            }
+            
+            return sb.toString()
+        }
+
         fun fromString(s: String): BigNumber {
             var valStr = s.trim()
             if (valStr.isEmpty()) return BigNumber("0")
@@ -390,12 +494,15 @@ class BigNumber {
                 valStr = valStr.substring(1)
             }
             
-            // Basic handling of scientific notation
+            // Handling of scientific notation (e.g., 1.23E-4)
             if (valStr.contains('E', ignoreCase = true)) {
                 return try {
                     val d = valStr.toDouble()
-                    if (kotlin.math.abs(d) < 1e-15) BigNumber("0")
-                    else BigNumber(d.toLong().toString())
+                    // If it's very small, treat as 0 for BigNumber purposes if needed, 
+                    // but for graphing we want precision.
+                    // Better way: convert Double to fixed-point string
+                    val fixedStr = formatDoubleToFixed(d)
+                    fromString(fixedStr)
                 } catch (e: Exception) {
                     BigNumber("0")
                 }
