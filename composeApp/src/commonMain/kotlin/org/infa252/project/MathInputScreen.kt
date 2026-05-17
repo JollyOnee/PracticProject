@@ -6,6 +6,11 @@ import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Backspace
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -156,15 +161,40 @@ fun MathInputScreen(
                         }
                     }
 
+                    val isWeb = remember { getPlatform().name.contains("Web") }
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        ControlKey("←", modifier = Modifier.weight(1f)) { viewModel.moveCursorLeft() }
-                        ControlKey("→", modifier = Modifier.weight(1f)) { viewModel.moveCursorRight() }
-                        ControlKey("⌫", modifier = Modifier.weight(1f)) { viewModel.onDelete() }
-                        ControlKey("C", modifier = Modifier.weight(1f)) { viewModel.onClear() }
-                        ControlKey("=", modifier = Modifier.weight(1f), isAccent = true) { viewModel.solveFormula() }
+                        ControlKey(
+                            label = "←",
+                            modifier = Modifier.weight(1f),
+                            onClick = { viewModel.moveCursorLeft() },
+                            content = if (isWeb) { { Icon(Icons.Default.KeyboardArrowLeft, "Left") } } else null
+                        )
+                        ControlKey(
+                            label = "→",
+                            modifier = Modifier.weight(1f),
+                            onClick = { viewModel.moveCursorRight() },
+                            content = if (isWeb) { { Icon(Icons.Default.KeyboardArrowRight, "Right") } } else null
+                        )
+                        ControlKey(
+                            label = "⌫",
+                            modifier = Modifier.weight(1f),
+                            onClick = { viewModel.onDelete() },
+                            content = if (isWeb) { { Icon(Icons.Default.Backspace, "Delete") } } else null
+                        )
+                        ControlKey(
+                            label = "C",
+                            modifier = Modifier.weight(1f),
+                            onClick = { viewModel.onClear() }
+                        )
+                        ControlKey(
+                            label = "=",
+                            modifier = Modifier.weight(1f),
+                            isAccent = true,
+                            onClick = { viewModel.solveFormula() }
+                        )
                     }
 
                     MathKeyboard(tab = viewModel.currentTab, onSymbolClick = { viewModel.onSymbolClick(it) })
@@ -347,20 +377,32 @@ fun VariablesSection(viewModel: MathViewModel) {
 }
 
 @Composable
-fun ControlKey(label: String, modifier: Modifier = Modifier, isAccent: Boolean = false, onClick: () -> Unit) {
+fun ControlKey(
+    label: String,
+    modifier: Modifier = Modifier,
+    isAccent: Boolean = false,
+    onClick: () -> Unit,
+    content: @Composable (() -> Unit)? = null
+) {
     Surface(
         onClick = onClick,
         modifier = modifier.height(44.dp),
         shape = RoundedCornerShape(10.dp),
         color = if (isAccent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
     ) {
-        Text(
-            text = label,
-            modifier = Modifier.fillMaxSize().wrapContentHeight(Alignment.CenterVertically),
-            style = MaterialTheme.typography.headlineLarge,
-            textAlign = TextAlign.Center,
-            color = if (isAccent) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-        )
+        if (content != null) {
+            Box(contentAlignment = Alignment.Center) {
+                content()
+            }
+        } else {
+            Text(
+                text = label,
+                modifier = Modifier.fillMaxSize().wrapContentHeight(Alignment.CenterVertically),
+                style = MaterialTheme.typography.headlineLarge,
+                textAlign = TextAlign.Center,
+                color = if (isAccent) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+            )
+        }
     }
 }
 
@@ -377,9 +419,9 @@ fun MathKeyboard(tab: String, onSymbolClick: (String) -> Unit) {
                 "x" to "x", ">" to ">", "%" to "\\frac{}{}", "=" to "="
             )
             "f(x)" -> listOf(
-                "|x|" to "\\left| {} \\right|", "log₁₀" to "\\log_{10}{}", "A" to "A_{}^{}", "e" to "e",
-                "log₂" to "\\log_{2}{}", "P" to "P_{}^{}", "!" to "!", "logₙ" to "\\log_{}{}",
-                "C" to "C_{}^{}", "ln" to "\\ln{}", "Σ" to "\\sum_{}^{}{}", "∫" to "\\int_{}^{}{}dx",
+                "|x|" to "\\left| {} \\right|", "log10" to "\\log_{10}{}", "A" to "A_{}^{}", "e" to "e",
+                "log2" to "\\log_{2}{}", "P" to "P_{}^{}", "!" to "!", "log_n" to "\\log_{}{}",
+                "C" to "C_{}^{}", "ln" to "\\ln{}", "sum" to "\\sum_{}^{}{}", "int" to "\\int_{}^{}{}dx",
                 "lim" to "\\lim_{ \\to }{}"
             )
             "sin" -> listOf(
