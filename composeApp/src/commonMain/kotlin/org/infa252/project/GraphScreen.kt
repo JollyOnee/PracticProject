@@ -1,6 +1,7 @@
 package org.infa252.project
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,7 +22,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Download
 import org.infa252.project.MathViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -37,6 +42,9 @@ fun GraphScreen(
     var offsetX by remember { mutableStateOf(0f) }
     var offsetY by remember { mutableStateOf(0f) }
     var showSettings by remember { mutableStateOf(false) }
+    var showExportDialog by remember { mutableStateOf(false) }
+    var isExporting by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     val baseRange = 20.0
     val xRange = baseRange / scale
@@ -74,6 +82,13 @@ fun GraphScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { showExportDialog = true }) {
+                        Icon(
+                            Icons.Default.Download,
+                            "Export SVG",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                     IconButton(onClick = { showSettings = true }) {
                         Icon(
                             Icons.Default.Settings,
@@ -242,6 +257,106 @@ fun GraphScreen(
                     }
                 }
             )
+        }
+
+        if (showExportDialog) {
+            var exportXMin by remember { mutableStateOf(xMin.toString()) }
+            var exportXMax by remember { mutableStateOf(xMax.toString()) }
+            val yRange = (xMax - xMin)
+            var exportYMin by remember { mutableStateOf((-yRange/2 + yOffset).toString()) }
+            var exportYMax by remember { mutableStateOf((yRange/2 + yOffset).toString()) }
+
+            AlertDialog(
+                onDismissRequest = { showExportDialog = false },
+                title = { Text("Экспорт в SVG (HQ)") },
+                text = {
+                    Column {
+                        Text("Настройте область для экспорта:", style = MaterialTheme.typography.labelMedium)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row {
+                            OutlinedTextField(
+                                value = exportXMin,
+                                onValueChange = { exportXMin = it },
+                                label = { Text("xMin") },
+                                modifier = Modifier.weight(1f)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            OutlinedTextField(
+                                value = exportXMax,
+                                onValueChange = { exportXMax = it },
+                                label = { Text("xMax") },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row {
+                            OutlinedTextField(
+                                value = exportYMin,
+                                onValueChange = { exportYMin = it },
+                                label = { Text("yMin") },
+                                modifier = Modifier.weight(1f)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            OutlinedTextField(
+                                value = exportYMax,
+                                onValueChange = { exportYMax = it },
+                                label = { Text("yMax") },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        Text(
+                            "Внимание: расчет с максимальной детализацией может занять время.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val x1 = exportXMin.toDoubleOrNull() ?: xMin
+                        val x2 = exportXMax.toDoubleOrNull() ?: xMax
+                        val y1 = exportYMin.toDoubleOrNull() ?: -10.0
+                        val y2 = exportYMax.toDoubleOrNull() ?: 10.0
+                        
+                        showExportDialog = false
+                        isExporting = true
+                        
+                        scope.launch {
+                            val svg = withContext(Dispatchers.Default) {
+                                graphEngine.generateSvgContent(
+                                    viewModel.formula, x1, x2, y1, y2
+                                )
+                            }
+                            
+                            // Вызываем платформенно-зависимое сохранение
+                            saveSvg("graph_${viewModel.formula.replace("\\", "")}.svg", svg)
+
+                            isExporting = false
+                        }
+                    }) {
+                        Text("Сохранить")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showExportDialog = false }) {
+                        Text("Отмена")
+                    }
+                }
+            )
+        }
+
+        if (isExporting) {
+            Box(
+                modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(color = Color.White)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Генерация HQ графика...", color = Color.White)
+                }
+            }
         }
     }
 }
