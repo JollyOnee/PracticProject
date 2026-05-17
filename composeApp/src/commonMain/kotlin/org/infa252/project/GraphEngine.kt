@@ -9,8 +9,11 @@ import kotlin.math.abs
 class GraphEngine(private val nativeLib: NativeLib) {
 
     private val tree = KmpTreeMap<Double, Double>()
-    private val maxDepth = 10
-    private val curvatureThreshold = 0.05
+    
+    // Используем настройки из GraphSettings
+    private val maxDepth get() = GraphSettings.maxDepth
+    private val curvatureThreshold get() = GraphSettings.curvatureThreshold
+    private val relativeThreshold get() = GraphSettings.relativeThreshold
 
     /**
      * Вычисляет точки функции в заданном диапазоне.
@@ -54,8 +57,8 @@ class GraphEngine(private val nativeLib: NativeLib) {
         val yLinear = (p1.value + p2.value) / 2.0
         val deviation = abs(yMid - yLinear)
 
-        // Адаптивный порог: 10% от значения или константа
-        val threshold = maxOf(curvatureThreshold, abs(yMid) * 0.1)
+        // Адаптивный порог: относительный порог (для 0) или константа (абсолютный порог)
+        val threshold = maxOf(curvatureThreshold, abs(yMid) * relativeThreshold)
 
         if (deviation > threshold) {
             tree.put(xMid, yMid)

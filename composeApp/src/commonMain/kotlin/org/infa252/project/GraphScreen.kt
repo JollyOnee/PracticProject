@@ -20,6 +20,7 @@ import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.filled.Settings
 import org.infa252.project.MathViewModel
 import kotlin.math.*
 
@@ -35,6 +36,7 @@ fun GraphScreen(
     var scale by remember { mutableStateOf(1f) }
     var offsetX by remember { mutableStateOf(0f) }
     var offsetY by remember { mutableStateOf(0f) }
+    var showSettings by remember { mutableStateOf(false) }
 
     val baseRange = 20.0
     val xRange = baseRange / scale
@@ -67,6 +69,15 @@ fun GraphScreen(
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             "Back",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { showSettings = true }) {
+                        Icon(
+                            Icons.Default.Settings,
+                            "Settings",
                             tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
@@ -175,16 +186,65 @@ fun GraphScreen(
                 Text("Сбросить вид")
             }
         }
+
+        if (showSettings) {
+            AlertDialog(
+                onDismissRequest = { showSettings = false },
+                title = { Text("Настройки движка") },
+                text = {
+                    Column {
+                        Text("Глубина вычислений: ${GraphSettings.maxDepth}")
+                        Slider(
+                            value = GraphSettings.maxDepth.toFloat(),
+                            onValueChange = { GraphSettings.maxDepth = it.toInt() },
+                            valueRange = 1f..20f,
+                            steps = 20
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("Абсолютный порог: ${formatDouble(GraphSettings.curvatureThreshold)}")
+                        Slider(
+                            value = GraphSettings.curvatureThreshold.toFloat(),
+                            onValueChange = { GraphSettings.curvatureThreshold = it.toDouble() },
+                            valueRange = 0.001f..0.5f,
+                            steps = 20
+
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("Порог для 0 (относ.): ${formatDouble(GraphSettings.relativeThreshold)}")
+                        Slider(
+                            value = GraphSettings.relativeThreshold.toFloat(),
+                            onValueChange = { GraphSettings.relativeThreshold = it.toDouble() },
+                            valueRange = 0.0001f..0.5f,
+                            steps = 20
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showSettings = false }) {
+                        Text("ОК")
+                    }
+                }
+            )
+        }
     }
 }
 
 // Вспомогательная функция для форматирования чисел без String.format (для KMP)
 private fun formatDouble(value: Double): String {
-    val rounded = (value * 10).roundToInt() / 10.0
-    return if (rounded == rounded.toLong().toDouble()) {
-        rounded.toLong().toString()
-    } else {
+    if (value.isNaN()) return "NaN"
+    if (value.isInfinite()) return "Infinity"
+    
+    // Для очень маленьких значений (пороги в настройках) увеличиваем точность
+    return if (abs(value) < 1.0 && value != 0.0) {
+        val rounded = (value * 1000).roundToInt() / 1000.0
         rounded.toString()
+    } else {
+        val rounded = (value * 10).roundToInt() / 10.0
+        if (rounded == rounded.toLong().toDouble()) {
+            rounded.toLong().toString()
+        } else {
+            rounded.toString()
+        }
     }
 }
 
