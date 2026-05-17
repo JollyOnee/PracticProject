@@ -30,6 +30,7 @@ fun GraphScreen(
     onBack: () -> Unit
 ) {
     val nativeLib = remember { NativeLib() }
+    val graphEngine = remember { GraphEngine(nativeLib) }
 
     var scale by remember { mutableStateOf(1f) }
     var offsetX by remember { mutableStateOf(0f) }
@@ -48,14 +49,7 @@ fun GraphScreen(
     }
 
     val points = remember(viewModel.formula, scale, offsetX, offsetY, isVerticalAxis) {
-        computePoints(
-            expression = viewModel.formula,
-            xMin = xMin,
-            xMax = xMax,
-            steps = 500, // Увеличиваем детализацию
-            nativeLib = nativeLib,
-            isVertical = isVerticalAxis
-        )
+        graphEngine.computePoints(viewModel.formula, xMin, xMax)
     }
 
     Scaffold(
@@ -184,49 +178,6 @@ fun GraphScreen(
     }
 }
 
-private fun computePoints(
-    expression: String,
-    xMin: Double,
-    xMax: Double,
-    steps: Int,
-    nativeLib: NativeLib,
-    isVertical: Boolean
-): List<Pair<Double, Double?>> {
-    val result = mutableListOf<Pair<Double, Double?>>()
-    val step = (xMax - xMin) / steps
-    
-    // Очищаем формулу от префиксов типа "y=" или "f(x)="
-    // Теперь делаем это безопаснее: если есть "=", берем то, что после него.
-    // Если "=" нет, берем всю формулу.
-    val cleanExpr = if (expression.contains("=")) {
-        expression.substringAfter("=").trim()
-    } else {
-        expression.trim()
-    }
-    
-    val targetVar = if (isVertical) "y" else "x"
-    var currentVal = xMin
-
-    for (i in 0..steps) {
-        val v = xMin + i * step
-        val res = try {
-            // Use the new API that accepts variables map
-            nativeLib.calculate(cleanExpr, mapOf(targetVar to v.toString())).toDoubleOrNull()
-        } catch (e: Exception) {
-            null
-        }
-
-        if (isVertical) {
-            // Если x = f(y), то результат вычисления (res) - это X, а v - это Y
-            // Важно: drawGraph ожидает Pair<Double, Double?>, где first - X, second - Y
-            result.add((res ?: Double.NaN) to v)
-        } else {
-            result.add(v to res)
-        }
-    }
-    return result
-}
-
 // Вспомогательная функция для форматирования чисел без String.format (для KMP)
 private fun formatDouble(value: Double): String {
     val rounded = (value * 10).roundToInt() / 10.0
@@ -299,7 +250,7 @@ private fun DrawScope.drawGrid(xMin: Double, xMax: Double, yOffset: Double, text
     drawLine(axisColor, Offset(axisX, 0f), Offset(axisX, h), strokeWidth = 2f)
 }
 
-private fun DrawScope.drawGraph(points: List<Pair<Double, Double?>>, xMin: Double, xMax: Double, yOffset: Double) {
+private fun DrawScope.drawGraph(points: KmpTreeMap<Double, Double>, xMin: Double, xMax: Double, yOffset: Double) {
     val w = size.width
     val h = size.height
     val xRange = xMax - xMin
@@ -314,8 +265,10 @@ private fun DrawScope.drawGraph(points: List<Pair<Double, Double?>>, xMin: Doubl
     val path = Path()
     var penDown = false
 
-    for ((x, y) in points) {
-        if (y == null || y.isNaN() || y.isInfinite() ||
+    for (entry in points) {
+        val x = entry.key
+        val y = entry.value
+        if (y.isNaN() || y.isInfinite() ||
             y < yMin - yRange * 5 || y > yMax + yRange * 5) {
             penDown = false
             continue
