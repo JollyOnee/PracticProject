@@ -3,6 +3,7 @@ package org.infa252.project
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 
 /**
@@ -26,4 +27,10 @@ object GraphSettings {
      * Защищает от чрезмерной детализации около оси X.
      */
     var relativeThreshold by mutableDoubleStateOf(0.1)
+
+    /**
+     * Использовать адаптивную чувствительность к масштабу.
+     * Если true, детализация не будет падать при отдалении.
+     */
+    var useScaleSensitivity by mutableStateOf(true)
 }

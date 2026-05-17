@@ -110,6 +110,12 @@ fun GraphScreen(
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onSurface
                 )
+                Text(
+                    text = "Точек: ${points.size} • Шаг: ${formatDouble((xMax - xMin) / 120.0)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+                )
             }
 
             if (viewModel.result.isNotEmpty()) {
@@ -217,6 +223,17 @@ fun GraphScreen(
                             valueRange = 0.0001f..0.5f,
                             steps = 20
                         )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Авто-детализация (зум):", modifier = Modifier.weight(1f))
+                            Switch(
+                                checked = GraphSettings.useScaleSensitivity,
+                                onCheckedChange = { GraphSettings.useScaleSensitivity = it }
+                            )
+                        }
                     }
                 },
                 confirmButton = {

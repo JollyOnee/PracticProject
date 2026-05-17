@@ -3,52 +3,61 @@ package org.infa252.project
 import kotlin.math.abs
 
 /**
- * Движок для адаптивного расчета точек графика.
- * Использует KmpTreeMap для хранения и Adaptive Sampling для детализации.
+ * Улучшенный движок для адаптивного расчета точек графика.
+ * Обеспечивает высокую детализацию при любом масштабе за счет визуального порога.
  */
 class GraphEngine(private val nativeLib: NativeLib) {
 
     private val tree = KmpTreeMap<Double, Double>()
-    
-    // Используем настройки из GraphSettings
-    private val maxDepth get() = GraphSettings.maxDepth
-    private val curvatureThreshold get() = GraphSettings.curvatureThreshold
-    private val relativeThreshold get() = GraphSettings.relativeThreshold
 
-    /**
-     * Вычисляет точки функции в заданном диапазоне.
-     */
     fun computePoints(expression: String, xMin: Double, xMax: Double): KmpTreeMap<Double, Double> {
         tree.clear()
         val cleanExpr = cleanExpression(expression)
         if (cleanExpr.isEmpty()) return tree
 
-        // 1. Поиск симметрии (упрощенно относительно x=0)
+        val xRange = xMax - xMin
+        
+        // Визуальный порог: отклонение более чем на 0.1% от ширины экрана (примерно 1 пиксель)
+        // считается изгибом, требующим новой точки.
+        val visualThreshold = if (GraphSettings.useScaleSensitivity) {
+            (xRange / 1000.0) * (GraphSettings.curvatureThreshold / 0.05)
+        } else {
+            GraphSettings.curvatureThreshold
+        }
+
         val isEven = checkEvenSymmetry(cleanExpr)
 
-        // 2. Первичный скелет (около 40-60 точек для баланса дерева)
-        fillSkeleton(cleanExpr, xMin, xMax, 0, 6, isEven)
+        // Шаг 1: Первичная сетка. Минимум 120 точек равномерно.
+        // Это гарантирует, что мы зацепимся за любые колебания функции.
+        val initialStep = xRange / 120.0
+        var x = xMin
+        while (x <= xMax + initialStep * 0.1) {
+            val y = calculateY(cleanExpr, x)
+            if (!y.isNaN()) {
+                tree.put(x, y)
+                if (isEven) tree.put(-x, y)
+            }
+            x += initialStep
+        }
         
-        // 3. Адаптивная дискретизация (проход по интервалам)
+        // Шаг 2: Адаптивная доработка интервалов
         val initialPoints = tree.toList()
         for (i in 0 until initialPoints.size - 1) {
-            adaptiveRefine(cleanExpr, initialPoints[i], initialPoints[i+1], 0, isEven)
+            adaptiveRefine(cleanExpr, initialPoints[i], initialPoints[i+1], 0, isEven, visualThreshold)
         }
         
         return tree
     }
 
-    /**
-     * Рекурсивно добавляет точки, если функция сильно изгибается.
-     */
     private fun adaptiveRefine(
         expr: String, 
         p1: Map.Entry<Double, Double>, 
         p2: Map.Entry<Double, Double>, 
         depth: Int, 
-        isEven: Boolean
+        isEven: Boolean,
+        threshold: Double
     ) {
-        if (depth >= maxDepth) return
+        if (depth >= GraphSettings.maxDepth) return
 
         val xMid = (p1.key + p2.key) / 2.0
         val yMid = calculateY(expr, xMid)
@@ -57,10 +66,10 @@ class GraphEngine(private val nativeLib: NativeLib) {
         val yLinear = (p1.value + p2.value) / 2.0
         val deviation = abs(yMid - yLinear)
 
-        // Адаптивный порог: относительный порог (для 0) или константа (абсолютный порог)
-        val threshold = maxOf(curvatureThreshold, abs(yMid) * relativeThreshold)
+        // Порог: учитываем визуальную точность и относительный порог для малых значений
+        val limit = maxOf(threshold, abs(yMid) * GraphSettings.relativeThreshold * (threshold / 0.05))
 
-        if (deviation > threshold) {
+        if (deviation > limit) {
             tree.put(xMid, yMid)
             if (isEven) tree.put(-xMid, yMid)
             
@@ -68,29 +77,9 @@ class GraphEngine(private val nativeLib: NativeLib) {
                 override val key = xMid
                 override val value = yMid
             }
-            
-            adaptiveRefine(expr, p1, midEntry, depth + 1, isEven)
-            adaptiveRefine(expr, midEntry, p2, depth + 1, isEven)
+            adaptiveRefine(expr, p1, midEntry, depth + 1, isEven, threshold)
+            adaptiveRefine(expr, midEntry, p2, depth + 1, isEven, threshold)
         }
-    }
-
-    /**
-     * Создает начальную сетку точек методом деления пополам.
-     */
-    private fun fillSkeleton(expr: String, xMin: Double, xMax: Double, depth: Int, targetDepth: Int, isEven: Boolean) {
-        if (depth > targetDepth) return
-
-        val mid = (xMin + xMax) / 2.0
-        if (tree.get(mid) == null) {
-            val y = calculateY(expr, mid)
-            if (!y.isNaN()) {
-                tree.put(mid, y)
-                if (isEven) tree.put(-mid, y)
-            }
-        }
-
-        fillSkeleton(expr, xMin, mid, depth + 1, targetDepth, isEven)
-        fillSkeleton(expr, mid, xMax, depth + 1, targetDepth, isEven)
     }
 
     private fun calculateY(expr: String, x: Double): Double {
