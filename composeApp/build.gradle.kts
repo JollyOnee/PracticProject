@@ -1,6 +1,7 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -45,7 +46,7 @@ kotlin {
             // Accompanist permissions
             implementation("com.google.accompanist:accompanist-permissions:0.36.0")
 
-            // Ktor для Gemini API
+            // Ktor для Groq API
             implementation("io.ktor:ktor-client-android:3.1.3")
             implementation("io.ktor:ktor-client-content-negotiation:3.1.3")
             implementation("io.ktor:ktor-serialization-kotlinx-json:3.1.3")
@@ -80,12 +81,22 @@ android {
     namespace = "org.infa252.project"
     compileSdk = 36
 
+    buildFeatures {
+        buildConfig = true
+    }
+
     defaultConfig {
         applicationId = "org.infa252.project"
         minSdk = 24
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
+
+
+
+        val localProps = Properties()
+        localProps.load(rootProject.file("local.properties").inputStream())
+        buildConfigField("String", "GROQ_API_KEY", "\"${localProps.getProperty("GROQ_API_KEY")}\"")
     }
 
     packaging {
