@@ -13,7 +13,7 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun App(
     viewModel: MathViewModel,
-    onOpenCamera: () -> Unit = {}
+    onOpenCamera: ((String) -> Unit) -> Unit = {}  // принимает колбэк onLatexReady
 ) {
     var currentScreen by remember { mutableStateOf("start") }
 
@@ -61,7 +61,13 @@ fun App(
                     viewModel = viewModel,
                     onBack = { currentScreen = "start" },
                     onShowGraph = { currentScreen = "graph" },
-                    onOpenCamera = onOpenCamera
+                    onOpenCamera = {
+                        onOpenCamera { latex ->
+                            viewModel.formula = latex
+                            viewModel.cursorIndex = latex.length
+                            currentScreen = "input"
+                        }
+                    }
                 )
             }
             "graph" -> {

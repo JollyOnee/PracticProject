@@ -1,4 +1,8 @@
-package model
+package org.infa252.project
 
-class CameraUiState {
+sealed class CameraUiState {
+    object Idle : CameraUiState()
+    object Loading : CameraUiState()
+    data class Success(val latex: String) : CameraUiState()
+    data class Error(val message: String) : CameraUiState()
 }
