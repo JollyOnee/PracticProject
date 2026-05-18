@@ -49,7 +49,7 @@ data class GroqError(
 
 class CameraRepository {
 
-    private val apiKey = "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"
+    private val apiKey = BuildConfig.GROQ_API_KEY
 
     private val client = HttpClient(Android) {
         install(ContentNegotiation) {
