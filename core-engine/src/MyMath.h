@@ -123,7 +123,7 @@ public:
         return BigNumber{result, a.point + b.point, a.sign != b.sign};
     }
     BigNumber operator / (const BigNumber& number) const {
-        if (number.value == "0") return BigNumber{"99"};
+        if (number.value == "0") return BigNumber{"42"};
         BigNumber a = *this;
         BigNumber b = number;
         int maxPoint = std::max(a.point, b.point);
@@ -255,9 +255,10 @@ public:
         }
         return result;
     }
-    
+    BigNumber round(BigNumber x);
     std::string getValue();
     int getPoint();
+    BigNumber log();
     BigNumber factorial(BigNumber x);
     BigNumber A(BigNumber x, BigNumber y);
     BigNumber C(BigNumber x, BigNumber y);
@@ -337,6 +338,7 @@ public:
         }
         return finish;
     }
+    std::vector<BigNumber> getVector();
     Polynom Multyply(BigNumber x);
     void PolynomPrint();
     BigNumber max();
@@ -350,6 +352,4 @@ public:
     BigNumber integral(BigNumber a, BigNumber b);
     Polynom pow(BigNumber n);
 };
-
-std::string evaluate(const std::string& expression);
 #endif
