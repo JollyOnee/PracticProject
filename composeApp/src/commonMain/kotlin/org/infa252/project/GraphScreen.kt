@@ -144,7 +144,7 @@ fun GraphScreen(
                                 offsetY += (pan.y / size.height * xRange * 2).toFloat()
                             }
                         }
-                        // Поддержка зума колесиком для ПК (commonMain way)
+                        // Поддержка зума колесиком для ПК
                         .pointerInput(Unit) {
                             awaitPointerEventScope {
                                 while (true) {
@@ -193,14 +193,17 @@ private fun computePoints(
     val step = (xMax - xMin) / steps
     var currentVal = xMin
 
-    // Определяем переменную для замены
-    val targetVar = if (isVertical) "y" else "x"
-
     while (currentVal <= xMax) {
-        val expr = expression.replace(targetVar, "($currentVal)")
         val res = try {
-            val answer = nativeLib.calculate(expr)
-            answer.toDoubleOrNull()
+            // Передаем оригинальное выражение с переменной и отдельно её значение
+            val answer = nativeLib.calculateWithXNative(expression, currentVal.toString())
+
+            // Если нативная библиотека вернула ошибку, записываем null
+            if (answer == "Error" || answer.isEmpty()) {
+                null
+            } else {
+                answer.toDoubleOrNull()
+            }
         } catch (e: Exception) {
             null
         }

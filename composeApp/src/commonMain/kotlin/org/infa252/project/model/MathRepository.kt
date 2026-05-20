@@ -17,27 +17,9 @@ class MathRepository {
     companion object {
         fun cleanExpression(formula: String): String {
             return formula
-                .replace("\\pi", "3.14159265358979")
-                .replace("\\times", "*")
-                .replace("\\cdot", "*")
-                .replace("\\div", "/")
-                .replace("÷", "/")
-                .replace("\\frac{", "(")
-                .replace("}{", ")/(")
-                .replace("\\left(", "(")
-                .replace("\\right)", ")")
-                .replace("\\left[", "[")
-                .replace("\\right]", "]")
-                .replace("\\sqrt{", "sqrt(")
-                .replace("\\ln{", "ln(")
-                .replace("\\log{", "log(")
-                .replace("\\sin{", "sin(")
-                .replace("\\cos{", "cos(")
-                .replace("\\tan{", "tan(")
-                .replace("\\%", "%")
-                .replace("{", "(")
-                .replace("}", ")")
-                .replace("\\", "")
+                // Только UI-символы которые C++ не знает
+                .replace("÷", "/")        // UI символ деления → /
+                .replace("\u00D7", "*")   // × (Unicode) → *
                 .trim()
         }
     }

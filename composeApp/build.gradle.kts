@@ -7,7 +7,6 @@ plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
-    alias(libs.plugins.composeHotReload)
 }
 
 kotlin {
@@ -17,21 +16,17 @@ kotlin {
         }
     }
 
-    jvm() // Для Desktop версии
+    jvm("desktop") {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_11)
+        }
+    }
 
     sourceSets {
-        val androidMain by getting {
-            dependencies {
-                implementation(libs.compose.uiToolingPreview)
-                implementation(libs.androidx.activity.compose)
-
-                // Gemini и CameraX — работают только здесь
-                implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
-                implementation("androidx.camera:camera-camera2:1.3.0")
-                implementation("androidx.camera:camera-lifecycle:1.3.0")
-                implementation("androidx.camera:camera-view:1.3.0")
-            }
-        }
+        // Явное получение ссылок на sourceSets
+        val commonMain by getting
+        val androidMain by getting
+        val desktopMain by getting
 
         commonMain.dependencies {
             implementation(libs.compose.runtime)
@@ -43,8 +38,6 @@ kotlin {
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(libs.latex.renderer)
             implementation(libs.compose.icons.extended)
-
-            // Сериализация и Ktor (теперь без конфликтов с JS)
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
             implementation("io.ktor:ktor-client-core:2.3.11")
             implementation("io.ktor:ktor-client-cio:2.3.11")
@@ -52,14 +45,23 @@ kotlin {
             implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.11")
         }
 
-        jvmMain.dependencies {
+        androidMain.dependencies {
+            implementation(libs.compose.uiToolingPreview)
+            implementation(libs.androidx.activity.compose)
+            implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
+            implementation("androidx.camera:camera-camera2:1.3.0")
+            implementation("androidx.camera:camera-lifecycle:1.3.0")
+            implementation("androidx.camera:camera-view:1.3.0")
+        }
+
+        desktopMain.dependencies {
             implementation(compose.desktop.currentOs)
             implementation(libs.kotlinx.coroutinesSwing)
         }
     }
 }
 
-configure<ApplicationExtension> {
+android {
     namespace = "org.infa252.project"
     compileSdk = 36
 
@@ -81,12 +83,6 @@ configure<ApplicationExtension> {
         cmake {
             path = file("../core-engine/CMakeLists.txt")
             version = "3.22.1"
-        }
-    }
-
-    packaging {
-        resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
 

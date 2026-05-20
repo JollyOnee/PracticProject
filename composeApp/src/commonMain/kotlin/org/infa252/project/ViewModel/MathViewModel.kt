@@ -66,11 +66,11 @@ class MathViewModel(private val repository: MathRepository) : ViewModel() {
                 start--
             }
             start++
-            
+
             val number = formula.substring(start, safeIndex)
             val prefix = formula.substring(0, start)
             val suffix = formula.substring(safeIndex)
-            
+
             formula = "$prefix\\frac{$number}{}$suffix"
             cursorIndex = prefix.length + "\\frac{$number}{".length
             saveToHistory()
@@ -93,7 +93,7 @@ class MathViewModel(private val repository: MathRepository) : ViewModel() {
     private fun isDecimalPointForbidden(): Boolean {
         if (formula.isEmpty()) return false
         val safeIndex = cursorIndex.coerceIn(0, formula.length)
-        
+
         // Look back from cursor to find if the current number already has a dot
         var i = safeIndex - 1
         while (i >= 0) {
@@ -102,7 +102,7 @@ class MathViewModel(private val repository: MathRepository) : ViewModel() {
             if (!char.isDigit()) break
             i--
         }
-        
+
         // Look forward from cursor
         var j = safeIndex
         while (j < formula.length) {
@@ -111,18 +111,18 @@ class MathViewModel(private val repository: MathRepository) : ViewModel() {
             if (!char.isDigit()) break
             j++
         }
-        
+
         return false
     }
 
     fun onDelete() {
         if (cursorIndex > 0) {
             val sb = StringBuilder(formula)
-            
+
             // Smart delete: if deleting a command part, delete the whole command
             var deleteCount = 1
             val prevChar = formula[cursorIndex - 1]
-            
+
             if (prevChar.isLetter()) {
                 var i = cursorIndex - 1
                 while (i >= 0 && formula[i].isLetter()) {
@@ -179,25 +179,25 @@ class MathViewModel(private val repository: MathRepository) : ViewModel() {
 
     private fun isValidCursorPosition(index: Int): Boolean {
         if (index == 0 || index == formula.length) return true
-        
+
         // Don't land inside a LaTeX command name (like \fr|ac)
         if (isInsideLatexCommandName(index)) return false
-        
+
         val prev = formula[index - 1]
         val curr = formula[index]
-        
+
         // Don't land between syntax characters like }{ or ]{
         if ((prev == '}' || prev == ']') && curr == '{') return false
-        
+
         // Allow landing before a backslash (start of a command)
         if (curr == '\\') return true
-        
+
         // Don't land immediately after a backslash or inside other syntax chars
         // except when it's the boundary of an editable area
         if (isSyntaxChar(curr) || isSyntaxChar(prev)) {
             val isBeforeClosing = curr == '}' || curr == ']'
             val isAfterOpening = prev == '{' || prev == '['
-            
+
             return isAfterOpening || isBeforeClosing
         }
 
@@ -208,18 +208,18 @@ class MathViewModel(private val repository: MathRepository) : ViewModel() {
 
     private fun isInsideLatexCommandName(index: Int): Boolean {
         if (index <= 0 || index >= formula.length) return false
-        
+
         // Check backwards for a backslash
         var i = index - 1
         while (i >= 0 && formula[i].isLetter()) {
             i--
         }
-        
+
         if (i >= 0 && formula[i] == '\\') {
             // It's a command name if all characters from the backslash to index are letters
             return true
         }
-        
+
         return false
     }
 
