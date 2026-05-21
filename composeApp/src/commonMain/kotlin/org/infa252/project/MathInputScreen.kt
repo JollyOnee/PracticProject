@@ -298,19 +298,17 @@ fun MathKeyboard(tab: String, onSymbolClick: (String) -> Unit) {
                 "4" to "4", "5" to "5", "6" to "6", "×" to "\\times",
                 "1" to "1", "2" to "2", "3" to "3", "-" to "-",
                 "0" to "0", "." to ".", "π" to "\\pi", "+" to "+",
-                "□/□" to "\\frac{}{}", "√□" to "\\sqrt{}", "□²" to "^{2}", "( )" to "\\left( \\right)",
-                "x" to "x", ">" to ">", "%" to "\\frac{}{}", "=" to "="
+                "□/□" to "\\frac{}{}", "□²" to "^{2}", "( )" to "\\left( \\right)",
+                "x" to "x",  "%" to "\\frac{}{}", "=" to "="
             )
             "f(x)" -> listOf(
-                "|x|" to "\\left| {} \\right|", "log₁₀" to "\\log_{10}{}", "A" to "A_{}^{}", "e" to "e",
-                "log₂" to "\\log_{2}{}", "P" to "P_{}^{}", "!" to "!", "logₙ" to "\\log_{}{}",
-                "C" to "C_{}^{}", "ln" to "\\ln{}", "Σ" to "\\sum_{}^{}{}", "∫" to "\\int_{}^{}{}dx",
-                "lim" to "\\lim_{ \\to }{}"
+                "A" to "A_{}^{}", "e" to "e",
+                "!" to "!",
+                "C" to "C_{}^{}", "ln" to "\\ln{}",  "∫" to "\\int_{}^{}{}dx"
+
             )
             "sin" -> listOf(
-                "sin" to "\\sin{}", "cos" to "\\cos{}", "tan" to "\\tan{}", "asin" to "\\arcsin{}",
-                "acos" to "\\arccos{}", "atan" to "\\arctan{}", "sinh" to "\\sinh{}", "cosh" to "\\cosh{}",
-                "tanh" to "\\tanh{}", "rad" to "\\text{rad}", "!" to "!"
+                "sin" to "\\sin{}", "cos" to "\\cos{}", "tan" to "\\tan{}"
             )
             else -> emptyList()
         }

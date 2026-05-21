@@ -1,12 +1,13 @@
+import java.io.File
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import com.android.build.api.dsl.ApplicationExtension
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
+    kotlin("plugin.serialization") version "2.0.0"
 }
 
 kotlin {
@@ -23,10 +24,14 @@ kotlin {
     }
 
     sourceSets {
-        // Явное получение ссылок на sourceSets
         val commonMain by getting
         val androidMain by getting
         val desktopMain by getting
+        val commonTest by getting {
+            dependencies {
+                implementation(kotlin("test"))
+            }
+        }
 
         commonMain.dependencies {
             implementation(libs.compose.runtime)
@@ -49,9 +54,12 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.activity.compose)
             implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
-            implementation("androidx.camera:camera-camera2:1.3.0")
-            implementation("androidx.camera:camera-lifecycle:1.3.0")
-            implementation("androidx.camera:camera-view:1.3.0")
+            implementation("androidx.camera:camera-core:1.3.4")
+            implementation("androidx.camera:camera-camera2:1.3.4")
+            implementation("androidx.camera:camera-lifecycle:1.3.4")
+            implementation("androidx.camera:camera-view:1.3.4")
+            implementation("com.google.accompanist:accompanist-permissions:0.34.0")
+            implementation("io.ktor:ktor-client-android:2.3.11")
         }
 
         desktopMain.dependencies {
@@ -72,11 +80,24 @@ android {
         versionCode = 1
         versionName = "1.0"
 
+        val groqKey = File(rootProject.projectDir, "local.properties")
+            .takeIf { it.exists() }
+            ?.readLines()
+            ?.find { it.startsWith("GROQ_API_KEY=") }
+            ?.substringAfter("=")
+            ?.trim() ?: ""
+
+        buildConfigField("String", "GROQ_API_KEY", "\"$groqKey\"")
+
         externalNativeBuild {
             cmake {
                 cppFlags("-std=c++17")
             }
         }
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     externalNativeBuild {

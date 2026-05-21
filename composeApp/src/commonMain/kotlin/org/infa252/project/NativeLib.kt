@@ -1,6 +1,6 @@
 package org.infa252.project
 
 expect class NativeLib() {
-    fun calculate(formula: String): String
-    fun calculateWithXNative(formula: String, xValue: String): String
+    fun calculate(expression: String): String
+    fun calculateWithXNative(expression: String, xValue: String): String
 }

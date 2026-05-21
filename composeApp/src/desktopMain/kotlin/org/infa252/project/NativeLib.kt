@@ -9,6 +9,17 @@ actual class NativeLib actual constructor() {
             calculateNative(expression)
         } catch (e: UnsatisfiedLinkError) {
             "Ошибка: DLL не найдена"
+        } catch (e: Exception) {
+            "Ошибка: ${e.message}"
+        }
+    }
+
+    actual fun calculateWithXNative(expression: String, xValue: String): String {
+        return try {
+            val x = xValue.toDoubleOrNull() ?: 0.0
+            MathEvaluator.evaluate(expression, x).toString()
+        } catch (e: Exception) {
+            "Ошибка вычисления"
         }
     }
 
@@ -16,11 +27,8 @@ actual class NativeLib actual constructor() {
 
     init {
         try {
-            // Ищем DLL в корне проекта (где лежит gradlew)
             val projectDir = System.getProperty("user.dir")
             val libFile = File(projectDir, "math_solver_lib.dll")
-
-
             if (libFile.exists()) {
                 System.load(libFile.absolutePath)
                 println("DLL успешно загружена из: ${libFile.absolutePath}")
@@ -28,7 +36,7 @@ actual class NativeLib actual constructor() {
                 System.loadLibrary("math_solver_lib")
             }
         } catch (e: UnsatisfiedLinkError) {
-            println("Не удалось найти библиотеку в корнях проекта.")
+            println("Не удалось найти библиотеку: ${e.message}")
         }
     }
 }

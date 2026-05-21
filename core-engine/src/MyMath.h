@@ -351,6 +351,8 @@ public:
     BigNumber integral(BigNumber a, BigNumber b);
     Polynom pow(BigNumber n);
 };
+
+
 BigNumber evaluate(const std::string& expr);
 std::string prepareLatex(const std::string& s);
 Polynom parsePolyExpression(const std::string& s);

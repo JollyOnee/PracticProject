@@ -4,11 +4,14 @@
 #include <iostream>
 #include <algorithm>
 #include <android/log.h>
+#include <mutex>
 #include "MyMath.h"
 
 #define LOG_TAG "MathSolver_Native"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
+
+static std::mutex g_mutex;
 
 std::string bigNumberToString(BigNumber num) {
     std::ostringstream oss;
@@ -27,47 +30,70 @@ std::string replaceAll(std::string str, const std::string& from, const std::stri
     return str;
 }
 
+static bool isBigNumberValid(BigNumber& num) {
+    std::string val = num.getValue();
+    int pt = num.getPoint();
+    if (val.empty()) return false;
+    if (val == "99") return false;
+    if (pt < 0 || pt > (int)val.length() + 10) return false;
+    for (char c : val) {
+        if (c != '-' && (c < '0' || c > '9')) return false;
+    }
+    return true;
+}
+
 extern "C" JNIEXPORT jstring JNICALL
 Java_org_infa252_project_NativeLib_calculateNative(JNIEnv *env, jobject thiz, jstring formula) {
     if (!formula) return env->NewStringUTF("0");
     const char *nativeFormula = env->GetStringUTFChars(formula, nullptr);
     std::string result;
-    try {
-        std::string expr(nativeFormula);
-        std::string prepared = prepareLatex(expr);
+    {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        try {
+            std::string expr(nativeFormula);
+            std::string prepared = prepareLatex(expr);
 
-        if (prepared.find('x') != std::string::npos && prepared.substr(0, 4) != "int(") {
-            // Многочлен — глушим мусорный вывод из Solve()
-            std::ostringstream devNull;
-            std::streambuf* old = std::cout.rdbuf(devNull.rdbuf());
-            Polynom p = parsePolyExpression(prepared);
-            std::vector<BigNumber> roots = p.Solve();
-            std::cout.rdbuf(old);
+            LOGI("Original: %s", expr.c_str());
+            LOGI("Prepared: %s", prepared.c_str());
 
-            if (roots.empty()) {
-                result = "Нет корней";
-            } else {
-                result = "x = ";
-                for (int i = 0; i < roots.size(); i++) {
-                    if (i > 0) result += ", ";
-                    result += bigNumberToString(roots[i]);
+            if (prepared.find('x') != std::string::npos && prepared.substr(0, 4) != "int(") {
+                std::ostringstream devNull;
+                std::streambuf* old = std::cout.rdbuf(devNull.rdbuf());
+                try {
+                    Polynom p = parsePolyExpression(prepared);
+                    std::cout.rdbuf(old);
+                    std::vector<BigNumber> roots = p.Solve();
+                    if (roots.empty()) {
+                        result = "Нет корней";
+                    } else {
+                        result = "x = ";
+                        for (int i = 0; i < roots.size(); i++) {
+                            if (i > 0) result += ", ";
+                            result += bigNumberToString(roots[i]);
+                        }
+                    }
+                } catch (const std::exception& e) {
+                    std::cout.rdbuf(old);
+                    result = std::string("Ошибка: ") + e.what();
+                } catch (...) {
+                    std::cout.rdbuf(old);
+                    result = "Ошибка вычисления";
                 }
+            } else {
+                BigNumber num = evaluate(expr);
+                result = bigNumberToString(num);
             }
-        } else {
-            BigNumber num = evaluate(expr);
-            result = bigNumberToString(num);
+        } catch (...) {
+            result = "Ошибка";
         }
-    } catch (...) {
-        result = "Ошибка";
     }
     env->ReleaseStringUTFChars(formula, nativeFormula);
     return env->NewStringUTF(result.c_str());
 }
 
-// ВОТ ТУТ МЫ ИСПРАВИЛИ ИМЯ: добавили JNI на конец, чтобы оно совпало с Kotlin
 extern "C" JNIEXPORT jstring JNICALL
 Java_org_infa252_project_NativeLib_calculateWithXNativeJNI(JNIEnv *env, jobject thiz, jstring formula, jstring x_value) {
-    if (!formula || !x_value) return env->NewStringUTF("0");
+    if (!formula || !x_value) return env->NewStringUTF("Error");
 
     const char *nativeFormula = env->GetStringUTFChars(formula, nullptr);
     const char *nativeX = env->GetStringUTFChars(x_value, nullptr);
@@ -78,20 +104,26 @@ Java_org_infa252_project_NativeLib_calculateWithXNativeJNI(JNIEnv *env, jobject 
 
     std::replace(xStr.begin(), xStr.end(), ',', '.');
 
-    // Выведем лог, чтобы на 100% убедиться, что вызов из графика дошел сюда!
-    __android_log_print(ANDROID_LOG_INFO, "MathSolver_Native", "Успешный JNI вызов! Считаем x=%s", nativeX);
-
-    try {
-        if (expr.find("x") != std::string::npos) {
-            expr = replaceAll(expr, "x", "(" + xStr + ")");
-        }
-        BigNumber num = evaluate(expr);
-        result = bigNumberToString(num);
-    } catch (...) {
-        result = "Error";
-    }
-
     env->ReleaseStringUTFChars(formula, nativeFormula);
     env->ReleaseStringUTFChars(x_value, nativeX);
+
+    {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        try {
+            if (expr.find("x") != std::string::npos) {
+                expr = replaceAll(expr, "x", "(" + xStr + ")");
+            }
+            BigNumber num = evaluate(expr);
+            if (!isBigNumberValid(num)) {
+                result = "Error";
+            } else {
+                result = bigNumberToString(num);
+                if (result.empty()) result = "Error";
+            }
+        } catch (...) {
+            result = "Error";
+        }
+    }
+
     return env->NewStringUTF(result.c_str());
 }

@@ -5,14 +5,14 @@ actual class NativeLib actual constructor() {
         System.loadLibrary("math_solver_lib")
     }
 
-    actual fun calculate(formula: String): String {
-        return calculateNative(formula)
+    actual fun calculate(expression: String): String {
+        return calculateNative(expression)
     }
 
-    actual fun calculateWithXNative(formula: String, xValue: String): String {
-        return calculateWithXNativeJNI(formula, xValue)
+    actual fun calculateWithXNative(expression: String, xValue: String): String {
+        return calculateWithXNativeJNI(expression, xValue)
     }
 
-    private external fun calculateNative(formula: String): String
-    private external fun calculateWithXNativeJNI(formula: String, xValue: String): String
+    private external fun calculateNative(expression: String): String
+    private external fun calculateWithXNativeJNI(expression: String, xValue: String): String
 }
