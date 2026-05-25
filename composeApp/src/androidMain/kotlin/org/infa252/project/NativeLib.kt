@@ -10,9 +10,9 @@ actual class NativeLib actual constructor() {
     }
 
     actual fun calculateWithXNative(formula: String, xValue: String): String {
-        return calculateWithXNativeJNI(formula, xValue)
+        return calculateWithXNativeImpl(formula, xValue)
     }
 
     private external fun calculateNative(formula: String): String
-    private external fun calculateWithXNativeJNI(formula: String, xValue: String): String
+    private external fun calculateWithXNativeImpl(formula: String, xValue: String): String
 }

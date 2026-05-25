@@ -23,7 +23,6 @@ kotlin {
     }
 
     sourceSets {
-        // Явное получение ссылок на sourceSets
         val commonMain by getting
         val androidMain by getting
         val desktopMain by getting
@@ -40,7 +39,6 @@ kotlin {
             implementation(libs.compose.icons.extended)
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
             implementation("io.ktor:ktor-client-core:2.3.11")
-            implementation("io.ktor:ktor-client-cio:2.3.11")
             implementation("io.ktor:ktor-client-content-negotiation:2.3.11")
             implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.11")
         }
@@ -52,6 +50,8 @@ kotlin {
             implementation("androidx.camera:camera-camera2:1.3.0")
             implementation("androidx.camera:camera-lifecycle:1.3.0")
             implementation("androidx.camera:camera-view:1.3.0")
+            implementation("androidx.activity:activity-ktx:1.9.0")
+            implementation("io.ktor:ktor-client-android:2.3.11")
         }
 
         desktopMain.dependencies {
@@ -72,10 +72,20 @@ android {
         versionCode = 1
         versionName = "1.0"
 
+        ndk {
+            abiFilters += listOf("arm64-v8a", "x86_64")
+        }
+
         externalNativeBuild {
             cmake {
                 cppFlags("-std=c++17")
             }
+        }
+    }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
         }
     }
 

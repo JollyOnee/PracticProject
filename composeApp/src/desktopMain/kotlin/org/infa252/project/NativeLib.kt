@@ -4,22 +4,29 @@ import java.io.File
 
 actual class NativeLib actual constructor() {
 
-    actual fun calculate(expression: String): String {
+    actual fun calculate(formula: String): String {
         return try {
-            calculateNative(expression)
+            calculateNative(formula)
         } catch (e: UnsatisfiedLinkError) {
             "Ошибка: DLL не найдена"
         }
     }
 
-    private external fun calculateNative(expression: String): String
+    actual fun calculateWithXNative(formula: String, xValue: String): String {
+        return try {
+            calculateWithXNativeImpl(formula, xValue)
+        } catch (e: UnsatisfiedLinkError) {
+            "Ошибка: DLL не найдена"
+        }
+    }
+
+    private external fun calculateNative(formula: String): String
+    private external fun calculateWithXNativeImpl(formula: String, xValue: String): String
 
     init {
         try {
-            // Ищем DLL в корне проекта (где лежит gradlew)
             val projectDir = System.getProperty("user.dir")
             val libFile = File(projectDir, "math_solver_lib.dll")
-
 
             if (libFile.exists()) {
                 System.load(libFile.absolutePath)

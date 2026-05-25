@@ -1,10 +1,10 @@
-﻿#include <jni.h>
+#include <jni.h>
 #include <string>
 #include <sstream>
-#include <android/log.h>
+#include <iostream>
 #include "MyMath.h"
 
-BigNumber   evaluate(const std::string& expr);
+BigNumber evaluate(const std::string& expr);
 std::string prepareLatex(const std::string& s);
 
 static std::string captureEvaluate(const std::string& expr) {
@@ -38,20 +38,13 @@ static std::string fromJString(JNIEnv* env, jstring js) {
     return s;
 }
 
-extern "C"
+extern "C" __declspec(dllexport)
 JNIEXPORT jstring JNICALL
 Java_org_infa252_project_NativeLib_calculateNative(
         JNIEnv* env, jobject, jstring formula)
 {
     try {
         std::string expr = fromJString(env, formula);
-
-        std::string prepared = prepareLatex(expr);
-        __android_log_print(ANDROID_LOG_DEBUG, "MATHSOLVER",
-                            "INPUT: %s", expr.c_str());
-        __android_log_print(ANDROID_LOG_DEBUG, "MATHSOLVER",
-                            "PREPARED: %s", prepared.c_str());
-
         std::string result = captureEvaluate(expr);
         return env->NewStringUTF(result.c_str());
     } catch (const std::exception& e) {
@@ -61,7 +54,7 @@ Java_org_infa252_project_NativeLib_calculateNative(
     }
 }
 
-extern "C"
+extern "C" __declspec(dllexport)
 JNIEXPORT jstring JNICALL
 Java_org_infa252_project_NativeLib_calculateWithXNativeImpl(
         JNIEnv* env, jobject, jstring formula, jstring xValue)
@@ -81,11 +74,6 @@ Java_org_infa252_project_NativeLib_calculateWithXNativeImpl(
                 subst += expr[i];
             }
         }
-
-        __android_log_print(ANDROID_LOG_DEBUG, "MATHSOLVER",
-                            "INPUT_X: %s", expr.c_str());
-        __android_log_print(ANDROID_LOG_DEBUG, "MATHSOLVER",
-                            "SUBST_X: %s", subst.c_str());
 
         std::string result = captureEvaluate(subst);
         return env->NewStringUTF(result.c_str());

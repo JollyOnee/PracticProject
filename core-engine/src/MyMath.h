@@ -14,9 +14,9 @@ public:
     BigNumber(std::string _value, int _point, bool _sign);
     BigNumber(std::string _value, int _point);
     BigNumber(std::string _value);
-    BigNumber(const BigNumber& number);
+    BigNumber(const BigNumber &number);
     BigNumber operator - () const {
-        return BigNumber{ value, point, !sign };
+        return BigNumber{value, point, !sign};
     }
     BigNumber operator + (const BigNumber& number) const {
         BigNumber a = *this;
@@ -47,14 +47,14 @@ public:
             if (next) {
                 Sum.insert(0, "1");
             }
-            return BigNumber{ Sum, a.point, a.sign };
+            return BigNumber{Sum, a.point, a.sign};
         }
         bool a_bigger = false;
         if (a.value > b.value) {
             a_bigger = true;
         }
         else if (a.value == b.value) {
-            return BigNumber{ "0", 0, 0 };
+            return BigNumber{"0", 0, 0};
         }
         std::string Sum = "";
         int next = 0;
@@ -74,7 +74,7 @@ public:
             while (Sum.length() > 1 && Sum[0] == '0') {
                 Sum.erase(0, 1);
             }
-            return BigNumber{ Sum, a.point, a.sign };
+            return BigNumber{Sum, a.point, a.sign};
         }
         else {
             for (int i = b.value.length() - 1; i >= 0; i--) {
@@ -92,7 +92,7 @@ public:
             while (Sum.length() > 1 && Sum[0] == '0') {
                 Sum.erase(0, 1);
             }
-            return BigNumber{ Sum, b.point, b.sign };
+            return BigNumber{Sum, b.point, b.sign};
         }
     }
     BigNumber operator - (const BigNumber& number) const {
@@ -120,10 +120,10 @@ public:
         while (pos + 1 < result.size() && result[pos] == '0')
             pos++;
         result.erase(0, pos);
-        return BigNumber{ result, a.point + b.point, a.sign != b.sign };
+        return BigNumber{result, a.point + b.point, a.sign != b.sign};
     }
     BigNumber operator / (const BigNumber& number) const {
-        if (number.value == "0") return BigNumber{ "99" };
+        if (number.value == "0") return BigNumber{"42"};
         BigNumber a = *this;
         BigNumber b = number;
         int maxPoint = std::max(a.point, b.point);
@@ -137,10 +137,10 @@ public:
         }
         a.point = 0;
         b.point = 0;
-        auto trim = [](std::string& s) {
+        auto trim = [](std::string &s) {
             while (s.length() > 1 && s[0] == '0') s.erase(0, 1);
         };
-        auto absGreaterOrEqual = [&](const std::string& x, const std::string& y) {
+        auto absGreaterOrEqual = [&](const std::string& x,const std::string& y) {
             std::string a = x;
             std::string b = y;
             trim(a);
@@ -161,8 +161,7 @@ public:
                 if (c < 0) {
                     c += 10;
                     carry = 1;
-                }
-                else {
+                } else {
                     carry = 0;
                 }
                 res.insert(0, std::string(1, c + '0'));
@@ -202,11 +201,11 @@ public:
             pointResult--;
         }
         bool sign = (a.sign != b.sign);
-        return BigNumber{ result, pointResult, sign };
+        return BigNumber{result, pointResult, sign};
     }
     BigNumber operator ^ (const BigNumber& exp) const {
         if (exp.point != 0) {
-            std::cout << "Error";
+            std::cout<<"Error";
         }
         if (exp.value == "0") {
             return BigNumber("1", 0, 0);
@@ -256,9 +255,10 @@ public:
         }
         return result;
     }
-
+    BigNumber round(BigNumber x);
     std::string getValue();
     int getPoint();
+    BigNumber log();
     BigNumber factorial(BigNumber x);
     BigNumber A(BigNumber x, BigNumber y);
     BigNumber C(BigNumber x, BigNumber y);
@@ -281,32 +281,32 @@ public:
     Polynom(const std::list<BigNumber>& numbers);
     Polynom operator - () const {
         std::list<BigNumber> numbers = {};
-        BigNumber b{ "1",0,1 };
-        for (BigNumber n : polynom) numbers.push_back(n * b);
-        return Polynom{ numbers };
+        BigNumber b{"1",0,1};
+        for (BigNumber n: polynom) numbers.push_back(n*b);
+        return Polynom{numbers};
     }
     Polynom operator + (const Polynom& number) const {
         int size = polynom.size();
         int size1 = number.polynom.size();
-        if (size >= size1) {
+        if (size>=size1) {
             std::list<BigNumber> num = {};
-            for (int i = 0; i < size1; i++) {
-                num.push_back(number.polynom[i] + polynom[i]);
+            for (int i=0; i<size1; i++) {
+                num.push_back(number.polynom[i]+polynom[i]);
             }
-            for (int i = size1; i < size; i++) {
+            for (int i=size1; i<size; i++) {
                 num.push_back(polynom[i]);
             }
-            return Polynom{ num };
+            return Polynom{num};
         }
         else {
             std::list<BigNumber> num = {};
-            for (int i = 0; i < size; i++) {
-                num.push_back(number.polynom[i] + polynom[i]);
+            for (int i=0; i<size; i++) {
+                num.push_back(number.polynom[i]+polynom[i]);
             }
-            for (int i = size; i < size1; i++) {
+            for (int i=size; i<size1; i++) {
                 num.push_back(number.polynom[i]);
             }
-            return Polynom{ num };
+            return Polynom{num};
         }
     }
     Polynom operator - (const Polynom& number) const {
@@ -314,30 +314,31 @@ public:
     }
     Polynom operator * (const Polynom& number) const {
         std::list<BigNumber> multiply = {};
-        for (int i = 0; i < polynom.size() + number.polynom.size() - 1;i++) {
-            BigNumber s{ "0" };
-            for (int j = 0; j < polynom.size(); j++) {
+        for (int i=0; i<polynom.size()+number.polynom.size()-1;i++) {
+            BigNumber s{"0"};
+            for (int j=0; j<polynom.size(); j++) {
                 if (i - j >= 0 && i - j < number.polynom.size()) {
                     s = s + polynom[j] * number.polynom[i - j];
                 }
             }
             multiply.push_back(s);
         }
-        return Polynom{ multiply };
+        return Polynom{multiply};
     }
     BigNumber operator()(BigNumber num) {
-        BigNumber finish{ "0" };
-        BigNumber pow{ num };
-        for (int i = 0; i < polynom.size(); i++) {
-            if (i == 0) {
+        BigNumber finish{"0"};
+        BigNumber pow{num};
+        for (int i=0; i<polynom.size(); i++) {
+            if (i==0) {
                 finish = polynom[0];
                 continue;
             }
-            finish = finish + (pow * polynom[i]);
+            finish = finish + (pow*polynom[i]);
             pow = pow * num;
         }
         return finish;
     }
+    std::vector<BigNumber> getVector();
     Polynom Multyply(BigNumber x);
     void PolynomPrint();
     BigNumber max();
@@ -347,12 +348,9 @@ public:
     Polynom cos();
     Polynom del(const Polynom& denom);
     Polynom logn();
+    Polynom loga(Polynom b);
     Polynom tan();
     BigNumber integral(BigNumber a, BigNumber b);
     Polynom pow(BigNumber n);
 };
-BigNumber evaluate(const std::string& expr);
-std::string prepareLatex(const std::string& s);
-Polynom parsePolyExpression(const std::string& s);
-BigNumber evaluate(const std::string& expr);
 #endif

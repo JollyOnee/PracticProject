@@ -21,10 +21,10 @@ int priority(char op) {
 }
 std::string readBraces(const std::string& s, int& i) {
     std::string result;
-    if (i >= s.size() || s[i] != '{') return result;
+    if (i >= (int)s.size() || s[i] != '{') return result;
     i++;
     int depth = 1;
-    while (i < s.size() && depth > 0) {
+    while (i < (int)s.size() && depth > 0) {
         if (s[i] == '{') {
             depth++;
             result += s[i];
@@ -40,61 +40,74 @@ std::string readBraces(const std::string& s, int& i) {
     }
     return result;
 }
+
+// Разбирает аргумент тригонометрической функции вида \sin{...}
+// Если внутри {} есть \left(...\right) — берёт только содержимое скобок как аргумент,
+// а остаток возвращает в after (это будет снаружи функции)
+std::string parseTrigArg(const std::string& braceContent, std::string& after) {
+    after = "";
+    size_t leftPos = braceContent.find("\\left");
+    size_t rightPos = braceContent.rfind("\\right)");
+    if (leftPos != std::string::npos && rightPos != std::string::npos) {
+        // пропускаем \left и открывающую скобку
+        size_t argStart = leftPos + 5; // после \left
+        // пропускаем саму скобку ( или [
+        if (argStart < braceContent.size() &&
+            (braceContent[argStart] == '(' || braceContent[argStart] == '['))
+            argStart++;
+        std::string sinArg = braceContent.substr(argStart, rightPos - argStart);
+        // всё после \right) остаётся снаружи
+        after = braceContent.substr(rightPos + 7);
+        return sinArg;
+    }
+    // нет \left\right — весь контент это аргумент
+    return braceContent;
+}
+
 std::string prepareLatex(const std::string& s) {
     std::string result;
 
-    for (int i = 0; i < s.size(); i++) {
+    for (int i = 0; i < (int)s.size(); i++) {
 
         if (s.substr(i, 5) == "\\frac") {
             i += 5;
-
             std::string top = readBraces(s, i);
             std::string bottom = readBraces(s, i);
-
             result += "(" + prepareLatex(top) + ")/(" + prepareLatex(bottom) + ")";
             i--;
         }
-
         else if (s.substr(i, 5) == "\\left") {
             i += 4;
         }
-
         else if (s.substr(i, 6) == "\\right") {
             i += 5;
         }
-
         else if (s.substr(i, 6) == "\\times") {
             result += "*";
             i += 5;
         }
-
         else if (s.substr(i, 5) == "\\cdot") {
             result += "*";
             i += 4;
         }
-
         else if (s.substr(i, 4) == "\\int") {
             i += 4;
-
             std::string a;
             std::string b;
             std::string func;
-
-            if (i < s.size() && s[i] == '_') {
+            if (i < (int)s.size() && s[i] == '_') {
                 i++;
                 a = readBraces(s, i);
             }
-
-            if (i < s.size() && s[i] == '^') {
+            if (i < (int)s.size() && s[i] == '^') {
                 i++;
                 b = readBraces(s, i);
             }
-
-            if (i < s.size() && s[i] == '{') {
+            if (i < (int)s.size() && s[i] == '{') {
                 func = readBraces(s, i);
             }
             else {
-                while (i < s.size() &&
+                while (i < (int)s.size() &&
                        s[i] != 'd' &&
                        s[i] != '|' &&
                        !isspace(s[i])) {
@@ -102,115 +115,128 @@ std::string prepareLatex(const std::string& s) {
                     i++;
                 }
             }
-
             result += "int("
                       + prepareLatex(func) + ","
                       + prepareLatex(a) + ","
                       + prepareLatex(b) + ")";
-
-            if (i + 1 < s.size() && s[i] == 'd' && s[i + 1] == 'x') {
+            if (i + 1 < (int)s.size() && s[i] == 'd' && s[i + 1] == 'x') {
                 i += 2;
             }
-
             i--;
         }
-
         else if (s.substr(i, 4) == "\\sin") {
             i += 4;
-            std::string inside = readBraces(s, i);
-            result += "sin(" + prepareLatex(inside) + ")";
+            std::string braceContent = readBraces(s, i);
+            std::string after;
+            std::string sinArg = parseTrigArg(braceContent, after);
+            result += "sin(" + prepareLatex(sinArg) + ")" + prepareLatex(after);
             i--;
         }
-
         else if (s.substr(i, 4) == "\\cos") {
             i += 4;
-            std::string inside = readBraces(s, i);
-            result += "cos(" + prepareLatex(inside) + ")";
+            std::string braceContent = readBraces(s, i);
+            std::string after;
+            std::string cosArg = parseTrigArg(braceContent, after);
+            result += "cos(" + prepareLatex(cosArg) + ")" + prepareLatex(after);
             i--;
         }
-
         else if (s.substr(i, 4) == "\\tan") {
             i += 4;
-            std::string inside = readBraces(s, i);
-            result += "tan(" + prepareLatex(inside) + ")";
+            std::string braceContent = readBraces(s, i);
+            std::string after;
+            std::string tanArg = parseTrigArg(braceContent, after);
+            result += "tan(" + prepareLatex(tanArg) + ")" + prepareLatex(after);
             i--;
         }
-
         else if (s.substr(i, 3) == "\\ln") {
             i += 3;
-            std::string inside = readBraces(s, i);
-            result += "ln(" + prepareLatex(inside) + ")";
-            i--;
-        }
 
+            if (i < (int)s.size() && (int)s.size() - i >= 5 && s.substr(i, 5) == "\\left") {
+                i += 5;
+            }
+
+            if (i < (int)s.size() && s[i] == '(') {
+                i++;
+                int start = i;
+                int depth = 1;
+
+                while (i < (int)s.size() && depth > 0) {
+                    if (s[i] == '(') depth++;
+                    else if (s[i] == ')') depth--;
+                    i++;
+                }
+
+                std::string inside = s.substr(start, i - start - 1);
+                result += "ln(" + prepareLatex(inside) + ")";
+
+                if (i < (int)s.size() && (int)s.size() - i >= 6 && s.substr(i, 6) == "\\right") {
+                    i += 6;
+                }
+
+                i--;
+            }
+            else {
+                std::string braceContent = readBraces(s, i);
+                std::string after;
+                std::string lnArg = parseTrigArg(braceContent, after);
+                result += "ln(" + prepareLatex(lnArg) + ")" + prepareLatex(after);
+                i--;
+            }
+        }
         else if (s.substr(i, 3) == "\\pi") {
             result += "3.1415926";
             i += 2;
         }
-
-        else if ((s[i] == 'A' || s[i] == 'C') && i + 1 < s.size() && s[i + 1] == '_') {
+        else if ((s[i] == 'A' || s[i] == 'C') && i + 1 < (int)s.size() && s[i + 1] == '_') {
             char func = s[i];
             i += 2;
-
             std::string bottom = readBraces(s, i);
-
-            if (i < s.size() && s[i] == '^') {
+            if (i < (int)s.size() && s[i] == '^') {
                 i++;
             }
-
             std::string top = readBraces(s, i);
-
             result += std::string(1, func)
                       + "(" + prepareLatex(bottom)
                       + "," + prepareLatex(top)
                       + ")";
-
             i--;
         }
-
         else if (s[i] == '^') {
             result += "^";
-
-            if (i + 1 < s.size() && s[i + 1] == '{') {
+            if (i + 1 < (int)s.size() && s[i + 1] == '{') {
                 i++;
                 std::string power = readBraces(s, i);
                 result += prepareLatex(power);
                 i--;
             }
         }
-
         else if (s[i] == '{') {
             result += "(";
         }
-
         else if (s[i] == '}') {
             result += ")";
         }
-
         else if (s[i] == 'e') {
             result += "2.7182818";
         }
-
         else if (s[i] == '\\') {
             continue;
         }
-
         else {
             result += s[i];
         }
     }
-
     return result;
 }
 std::vector<Token> tokenize(const std::string& s) {
     std::vector<Token> tokens;
     bool expectNumber = true;
-    for (int i = 0; i < s.size(); i++) {
+    for (int i = 0; i < (int)s.size(); i++) {
         if (isspace(s[i])) continue;
         if (s[i] == '-' && expectNumber) {
             std::string num = "-";
             i++;
-            while (i < s.size() && (isdigit(s[i]) || s[i] == '.')) {
+            while (i < (int)s.size() && (isdigit(s[i]) || s[i] == '.')) {
                 num += s[i++];
             }i--;
             tokens.push_back({ Token::NUMBER, num });
@@ -219,8 +245,7 @@ std::vector<Token> tokenize(const std::string& s) {
         }
         if (isdigit(s[i]) || s[i] == '.') {
             std::string num;
-
-            while (i < s.size() && (isdigit(s[i]) || s[i] == '.')) {
+            while (i < (int)s.size() && (isdigit(s[i]) || s[i] == '.')) {
                 num += s[i++];
             }
             i--;
@@ -258,7 +283,6 @@ std::vector<Token> tokenize(const std::string& s) {
         }
         else if (std::string("+-*/^()!%,").find(s[i]) != std::string::npos) {
             tokens.push_back({ Token::OP, std::string(1, s[i]) });
-
             if (s[i] == '!' || s[i] == '%') {
                 expectNumber = false;
             }
@@ -275,7 +299,6 @@ std::vector<Token> tokenize(const std::string& s) {
             }
         }
     }
-
     return tokens;
 }
 std::vector<Token> toRPN(const std::vector<Token>& tokens) {
@@ -424,7 +447,7 @@ Polynom parsePolynomial(std::string s) {
         if (!isspace(c)) clean += c;
     }
     std::vector<BigNumber> coef(20, BigNumber{ "0" });
-    for (int i = 0; i < clean.size();) {
+    for (int i = 0; i < (int)clean.size();) {
         int sign = 0;
         if (clean[i] == '+') i++;
         else if (clean[i] == '-') {
@@ -432,7 +455,7 @@ Polynom parsePolynomial(std::string s) {
             i++;
         }
         std::string term;
-        while (i < clean.size() && clean[i] != '+' && clean[i] != '-') {
+        while (i < (int)clean.size() && clean[i] != '+' && clean[i] != '-') {
             term += clean[i];
             i++;
         }
@@ -449,7 +472,6 @@ Polynom parsePolynomial(std::string s) {
             }
             else {
                 number = term.substr(0, xPos);
-
                 if (!number.empty() && number.back() == '*') {
                     number.pop_back();
                 }
@@ -463,7 +485,6 @@ Polynom parsePolynomial(std::string s) {
             }
         }
         BigNumber value = makeNumber(number);
-
         if (sign == 1) {
             value = -value;
         }
@@ -471,7 +492,7 @@ Polynom parsePolynomial(std::string s) {
     }
     std::list<BigNumber> result;
     int maxDegree = 0;
-    for (int i = 0; i < coef.size(); i++) {
+    for (int i = 0; i < (int)coef.size(); i++) {
         if (coef[i].getValue() != "0") {
             maxDegree = i;
         }
@@ -515,65 +536,117 @@ std::vector<std::string> splitArgs(const std::string& s) {
 Polynom constPoly(BigNumber n) {
     return Polynom({ n });
 }
-
 Polynom xPoly() {
     return Polynom({ BigNumber{"0"}, BigNumber{"1"} });
 }
-
 Polynom powPoly(Polynom p, int n) {
     Polynom result({ BigNumber{"1"} });
-
     for (int i = 0; i < n; i++) {
         result = result * p;
     }
-
     return result;
 }
-
 Polynom parsePolyExpression(const std::string& s) {
     std::stack<Polynom> values;
     std::stack<char> ops;
-
     auto applyOp = [&]() {
         char op = ops.top();
         ops.pop();
-
         Polynom b = values.top();
         values.pop();
-
         Polynom a = values.top();
         values.pop();
-
         if (op == '+') values.push(a + b);
         if (op == '-') values.push(a - b);
         if (op == '*') values.push(a * b);
-        if (op == '^') {
-            // степень должна быть обычным числом
-            // пока поддерживаем x^2, x^3, x^4...
-            // поэтому b здесь не используем
-        }
     };
-
     auto pr = [](char op) {
         if (op == '^') return 3;
         if (op == '*') return 2;
         if (op == '+' || op == '-') return 1;
         return 0;
     };
-
-    for (int i = 0; i < s.size(); i++) {
+    for (int i = 0; i < (int)s.size(); i++) {
         if (isspace(s[i])) continue;
-
+        if (s.substr(i, 2) == "ln") {
+            i += 2;
+            if (i < (int)s.size() && s[i] == '(') {
+                int start = i + 1;
+                int depth = 1;
+                i++;
+                while (i < (int)s.size() && depth > 0) {
+                    if (s[i] == '(') depth++;
+                    else if (s[i] == ')') depth--;
+                    i++;
+                }
+                std::string inside = s.substr(start, i - start - 1);
+                Polynom inner = parsePolyExpression(inside);
+                values.push(inner.logn());
+                i--;
+                continue;
+            }
+        }
+        if (s.substr(i, 3) == "sin") {
+            i += 3;
+            if (i < (int)s.size() && s[i] == '(') {
+                int start = i + 1;
+                int depth = 1;
+                i++;
+                while (i < (int)s.size() && depth > 0) {
+                    if (s[i] == '(') depth++;
+                    else if (s[i] == ')') depth--;
+                    i++;
+                }
+                std::string inside = s.substr(start, i - start - 1);
+                Polynom inner = parsePolyExpression(inside);
+                values.push(inner.sin());
+                i--;
+                continue;
+            }
+        }
+        if (s.substr(i, 3) == "cos") {
+            i += 3;
+            if (i < (int)s.size() && s[i] == '(') {
+                int start = i + 1;
+                int depth = 1;
+                i++;
+                while (i < (int)s.size() && depth > 0) {
+                    if (s[i] == '(') depth++;
+                    else if (s[i] == ')') depth--;
+                    i++;
+                }
+                std::string inside = s.substr(start, i - start - 1);
+                Polynom inner = parsePolyExpression(inside);
+                values.push(inner.cos());
+                i--;
+                continue;
+            }
+        }
+        if (s.substr(i, 3) == "tan") {
+            i += 3;
+            if (i < (int)s.size() && s[i] == '(') {
+                int start = i + 1;
+                int depth = 1;
+                i++;
+                while (i < (int)s.size() && depth > 0) {
+                    if (s[i] == '(') depth++;
+                    else if (s[i] == ')') depth--;
+                    i++;
+                }
+                std::string inside = s.substr(start, i - start - 1);
+                Polynom inner = parsePolyExpression(inside);
+                values.push(inner.tan());
+                i--;
+                continue;
+            }
+        }
         if (isdigit(s[i])) {
             std::string num;
-
-            while (i < s.size() && (isdigit(s[i]) || s[i] == '.')) {
+            while (i < (int)s.size() && (isdigit(s[i]) || s[i] == '.')) {
                 num += s[i];
                 i++;
             }
-
             i--;
-
             values.push(constPoly(makeNumber(num)));
         }
         else if (s[i] == 'x') {
@@ -590,36 +663,28 @@ Polynom parsePolyExpression(const std::string& s) {
         }
         else if (s[i] == '^') {
             i++;
-
             std::string num;
-            while (i < s.size() && isdigit(s[i])) {
+            while (i < (int)s.size() && isdigit(s[i])) {
                 num += s[i];
                 i++;
             }
             i--;
-
             int power = std::stoi(num);
-
             Polynom a = values.top();
             values.pop();
-
             values.push(powPoly(a, power));
         }
         else if (s[i] == '+' || s[i] == '-' || s[i] == '*') {
             char op = s[i];
-
             while (!ops.empty() && ops.top() != '(' && pr(ops.top()) >= pr(op)) {
                 applyOp();
             }
-
             ops.push(op);
         }
     }
-
     while (!ops.empty()) {
         applyOp();
     }
-
     return values.top();
 }
 BigNumber evaluate(const std::string& expr) {
@@ -632,7 +697,6 @@ BigNumber evaluate(const std::string& expr) {
         BigNumber b = evaluate(args[2]);
         return p.integral(a, b);
     }
-    // Если выражение содержит x — считаем, что это многочлен
     if (prepared.find('x') != std::string::npos) {
         Polynom p = parsePolyExpression(prepared);
         std::cout << "Polynomial: ";
@@ -649,13 +713,11 @@ BigNumber evaluate(const std::string& expr) {
             BigNumber mul = makeNumber(mulStr);
             if (mul.getValue() == "0") {
                 BigNumber x1 = makeNumber(iStr);
-
                 if (p(x1).getValue() == "0") {
                     addRootIfUnique(roots, x1);
                 }
                 else {
                     BigNumber x2 = x1 + BigNumber{ "1", 1 };
-
                     if (p(x2).getValue() == "0") {
                         addRootIfUnique(roots, x2);
                     }
@@ -670,122 +732,7 @@ BigNumber evaluate(const std::string& expr) {
         std::cout << std::endl;
         return BigNumber{ "0" };
     }
-    // Иначе обычное числовое выражение
     auto tokens = tokenize(prepared);
     auto rpn = toRPN(tokens);
     return evalRPN(rpn);
-}
-
-int main() {
-    /*evaluate("5!").print(1);
-    evaluate("50%").print(1);
-    evaluate("\\frac{6}{3}").print(1);
-    evaluate("\\pi").print(1);
-    evaluate("e").print(1);
-    evaluate("A_{5}^{2}").print(1);   // 20
-    evaluate("A_{6}^{3}").print(1);   // 120
-    evaluate("A_{4}^{4}").print(1);   // 24
-    evaluate("A_{7}^{0}").print(1);   // 1
-
-    evaluate("C_{5}^{2}").print(1);   // 10
-    evaluate("C_{6}^{3}").print(1);   // 20
-    evaluate("C_{4}^{4}").print(1);   // 1
-    evaluate("C_{7}^{0}").print(1);   // 1
-        evaluate("2+3*4").print(1);          // обычные числа
-        evaluate("\\frac{6}{3}").print(1);   // обычный LaTeX
-        evaluate("x^2-4");                   // многочлен
-        evaluate("x^2-5*x+6");               // многочлен
-        evaluate("\\frac{1}{1}x^2-9");       // многочлен из LaTeX
-
-    evaluate("C_{2}^{5}").print(1);
-    evaluate("\\sin{0}").print(1);
-    evaluate("\\cos{0}").print(1);
-    evaluate("\\tan{0}").print(1);
-    evaluate("\\ln{2}").print(1);
-    evaluate("\\int{2}{1}{4}dx").print(1);
-    evaluate("\\int{x^10+x^8+1}{0}{1}dx").print(1);
-    evaluate("(2+3)*4").print(1);
-    evaluate("2+3*4").print(1);
-    evaluate("(2+3)^2").print(1);
-/*evaluate("\\int{x^2}{0}{1}dx").print(1);
-evaluate("\\int{x^2+2*x+1}{0}{1}dx").print(1);
-evaluate("\\int{2*x^2-8}{-2}{2}dx").print(1);
-evaluate("\\int{1}{0}{5}dx").print(1);
-// 5
-evaluate("\\int{x}{0}{10}dx").print(1);
-// 50
-evaluate("\\int{x^2}{0}{1}dx").print(1);
-// 0.3333333333333333333333333
-evaluate("\\int{2*x}{0}{5}dx").print(1);
-// 25
-evaluate("\\int{x+1}{0}{3}dx").print(1);
-// 7.5
-evaluate("\\int{2*x+3}{0}{4}dx").print(1);
-// 28
-evaluate("\\int{x^2+2*x+1}{0}{1}dx").print(1);
-// 2.3333333333333333333333333
-evaluate("\\int{x^2-4}{0}{2}dx").print(1);
-// -5.3333333333333333333333333
-evaluate("\\int{2*x^2-8}{-2}{2}dx").print(1);
-// -21.3333333333333333333333333
-evaluate("\\int{x^3}{0}{2}dx").print(1);
-// 4
-evaluate("\\int{x^3+x^2+x+1}{0}{1}dx").print(1);
-// 2.0833333333333333333333333
-evaluate("\\int{x^4}{0}{1}dx").print(1);
-// 0.2
-evaluate("\\int{3*x^4-2*x^3+x^2-x+7}{0}{2}dx").print(1);
-// 39.0666666666666666666666666
-evaluate("\\int{x^5+x^4+x^3+x^2+x+1}{0}{1}dx").print(1);
-// 2.45
-/*
-evaluate("x^2-4");
-// roots: -2 2
-evaluate("x^2-9");
-// roots: -3 3
-evaluate("x^2-1");
-// roots: -1 1
-evaluate("x^2+2*x+1");
-// root: -1
-evaluate("x^2-5*x+6");
-// roots: 2 3
-evaluate("x^2+5*x+6");
-// roots: -3 -2
-evaluate("x^3-x");
-// roots: -1 0 1
-evaluate("x^3-4*x");
-// roots: -2 0 2
-evaluate("2*x^2-8");
-// roots: -2 2
-evaluate("3*x^2-12");
-// roots: -2 2
-evaluate("x^3-8");
-// root: 2
-evaluate("x^4-16");
-// roots: -2 2
-evaluate("x^2");
-// root: 0
-evaluate("x^2+1");
-// no real roots
-evaluate("x^3+x^2-x-1");
-// roots: -1 1
-evaluate("x^3-6*x^2+11*x-6");
-// roots: 1 2 3*/                  // roots: -2 2
-//evaluate("C_{5}^{2}").print(1);   // 10
-//evaluate("C_{6}^{3}").print(1);   // 20
-//evaluate("C_{4}^{4}").print(1);   // 1
-//evaluate("C_{7}^{0}").print(1);   // 1
-//evaluate("A_{5}^{2}").print(1);   // 20
-//evaluate("A_{6}^{3}").print(1);   // 120
-//evaluate("A_{4}^{4}").print(1);   // 24
-//evaluate("A_{7}^{0}").print(1);   // 1
-    evaluate("(1+x+x^2)*(4-4*x-5*x^2)");
-//evaluate("\\int_{0}^{10}{x}dx").print(1);
-    evaluate("C_{10}^{2}").print(1); // 45
-    evaluate("C_{5}^{2}").print(1);  // 10
-    evaluate("C_{6}^{3}").print(1);  // 20
-    evaluate("C_{7}^{0}").print(1);  // 1
-    evaluate("\\ln(2000+2x)+1").print(1);
-    evaluate("\\left(x+1\\right)\\times\\left(x^{2}-1\\right)");
-    return 0;
 }
