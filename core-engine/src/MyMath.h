@@ -16,7 +16,7 @@ public:
     BigNumber(std::string _value);
     BigNumber(const BigNumber &number);
     BigNumber operator - () const {
-    return BigNumber{value, point, !sign};
+        return BigNumber{value, point, !sign};
     }
     BigNumber operator + (const BigNumber& number) const {
         BigNumber a = *this;
@@ -108,8 +108,8 @@ public:
             int carry = 0;
             for (int j = (int)b.value.length() - 1; j >= 0; j--) {
                 int cur = (result[i + j + 1] - '0')
-                        + (a.value[i] - '0') * (b.value[j] - '0')
-                        + carry;
+                          + (a.value[i] - '0') * (b.value[j] - '0')
+                          + carry;
                 result[i + j + 1] = (cur % 10) + '0';
                 carry = cur / 10;
             }
@@ -123,7 +123,7 @@ public:
         return BigNumber{result, a.point + b.point, a.sign != b.sign};
     }
     BigNumber operator / (const BigNumber& number) const {
-        if (number.value == "0") return BigNumber{"99"};
+        if (number.value == "0") return BigNumber{"42"};
         BigNumber a = *this;
         BigNumber b = number;
         int maxPoint = std::max(a.point, b.point);
@@ -196,7 +196,7 @@ public:
         }
         trim(result);
         while (pointResult > 0 &&
-            result.back() == '0') {
+               result.back() == '0') {
             result.pop_back();
             pointResult--;
         }
@@ -255,9 +255,10 @@ public:
         }
         return result;
     }
-    
+    BigNumber round(BigNumber x);
     std::string getValue();
     int getPoint();
+    BigNumber log();
     BigNumber factorial(BigNumber x);
     BigNumber A(BigNumber x, BigNumber y);
     BigNumber C(BigNumber x, BigNumber y);
@@ -267,7 +268,7 @@ public:
     BigNumber percent(BigNumber x);
     bool getSign();
     void setValue(std::string MyValue);
-    void setPoint(int MyPoint); 
+    void setPoint(int MyPoint);
     void setSign(bool MySign);
     void print(bool enter);
     void ParametrsPrint();
@@ -291,7 +292,7 @@ public:
             std::list<BigNumber> num = {};
             for (int i=0; i<size1; i++) {
                 num.push_back(number.polynom[i]+polynom[i]);
-            } 
+            }
             for (int i=size1; i<size; i++) {
                 num.push_back(polynom[i]);
             }
@@ -301,7 +302,7 @@ public:
             std::list<BigNumber> num = {};
             for (int i=0; i<size; i++) {
                 num.push_back(number.polynom[i]+polynom[i]);
-            } 
+            }
             for (int i=size; i<size1; i++) {
                 num.push_back(number.polynom[i]);
             }
@@ -337,6 +338,7 @@ public:
         }
         return finish;
     }
+    std::vector<BigNumber> getVector();
     Polynom Multyply(BigNumber x);
     void PolynomPrint();
     BigNumber max();
@@ -346,10 +348,9 @@ public:
     Polynom cos();
     Polynom del(const Polynom& denom);
     Polynom logn();
+    Polynom loga(Polynom b);
     Polynom tan();
     BigNumber integral(BigNumber a, BigNumber b);
     Polynom pow(BigNumber n);
 };
-
-std::string evaluate(const std::string& expression);
 #endif
