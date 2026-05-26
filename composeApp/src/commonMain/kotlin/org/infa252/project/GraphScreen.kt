@@ -41,7 +41,7 @@ fun GraphScreen(
 
     var points by remember { mutableStateOf<List<Pair<Double, Double?>>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
-
+    var exportMessage by remember { mutableStateOf("") }
     val baseRange = 20.0
     val safeScale = scale.coerceIn(0.1f, 50f)
 
@@ -230,7 +230,7 @@ fun GraphScreen(
 
                     val result = saveSvgFile("graph.svg", svg)
 
-                    println(result)
+                    exportMessage = "График сохранён"
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -238,6 +238,15 @@ fun GraphScreen(
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Text("Экспорт SVG")
+            }
+            if (exportMessage.isNotBlank()) {
+
+                Text(
+                    text = exportMessage,
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
             }
         }
     }
