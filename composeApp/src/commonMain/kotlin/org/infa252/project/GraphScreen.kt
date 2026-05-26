@@ -9,6 +9,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import java.util.Locale
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -24,7 +25,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.util.Locale
 import kotlin.math.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -198,6 +198,30 @@ fun GraphScreen(
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Text("Сбросить вид")
+            }
+            Button(
+                onClick = {
+                    val svgPoints = points
+                        .filter { it.second != null }
+                        .map { it.first to it.second!! }
+
+                    val svg = createGraphSvg(
+                        points = svgPoints,
+                        xMin = xMin,
+                        xMax = xMax,
+                        yOffset = yOffset
+                    )
+
+                    val result = saveSvgFile("graph.svg", svg)
+
+                    println(result)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("Экспорт SVG")
             }
         }
     }
@@ -663,4 +687,47 @@ private fun formatLabel(value: Double): String {
     } else {
         String.format(Locale.US, "%.1f", value)
     }
+}
+private fun createGraphSvg(
+    points: List<Pair<Double, Double>>,
+    xMin: Double,
+    xMax: Double,
+    yOffset: Double
+): String {
+    val width = 1200.0
+    val height = 800.0
+
+    val xRange = xMax - xMin
+    val yRange = xRange * (height / width)
+
+    val yMin = -yRange / 2.0 + yOffset
+    val yMax = yRange / 2.0 + yOffset
+
+    fun toSvgX(x: Double): Double {
+        return ((x - xMin) / xRange) * width
+    }
+
+    fun toSvgY(y: Double): Double {
+        return height - ((y - yMin) / (yMax - yMin)) * height
+    }
+
+    val polyline = points
+        .filter { it.first.isFinite() && it.second.isFinite() }
+        .joinToString(" ") {
+            "${toSvgX(it.first)},${toSvgY(it.second)}"
+        }
+
+    val axisX = toSvgX(0.0)
+    val axisY = toSvgY(0.0)
+
+    return """
+<svg xmlns="http://www.w3.org/2000/svg" width="$width" height="$height" viewBox="0 0 $width $height">
+    <rect width="100%" height="100%" fill="white"/>
+
+    <line x1="0" y1="$axisY" x2="$width" y2="$axisY" stroke="gray" stroke-width="2"/>
+    <line x1="$axisX" y1="0" x2="$axisX" y2="$height" stroke="gray" stroke-width="2"/>
+
+    <polyline points="$polyline" fill="none" stroke="blue" stroke-width="3"/>
+</svg>
+    """.trimIndent()
 }

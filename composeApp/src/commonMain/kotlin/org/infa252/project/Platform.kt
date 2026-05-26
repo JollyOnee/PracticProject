@@ -5,3 +5,5 @@ interface Platform {
 }
 
 expect fun getPlatform(): Platform
+
+expect fun saveSvgFile(fileName: String, content: String): String
