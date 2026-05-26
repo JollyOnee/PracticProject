@@ -201,6 +201,22 @@ fun GraphScreen(
             }
             Button(
                 onClick = {
+
+                    points = emptyList()
+
+                    scale = 1f
+                    offsetX = 0f
+                    offsetY = 0f
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("Очистить график")
+            }
+            Button(
+                onClick = {
                     val svgPoints = points
                         .filter { it.second != null }
                         .map { it.first to it.second!! }
