@@ -167,7 +167,7 @@ fun MathInputScreen(
 
                     Button(
                         onClick = {
-                            viewModel.solveFormula()
+
                             onShowGraph()
                         },
                         modifier = Modifier

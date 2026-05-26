@@ -15,12 +15,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.input.pointer.*
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.*
+import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import org.infa252.project.MathViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.util.Locale
 import kotlin.math.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -35,24 +39,42 @@ fun GraphScreen(
     var offsetX by remember { mutableStateOf(0f) }
     var offsetY by remember { mutableStateOf(0f) }
 
+    var points by remember { mutableStateOf<List<Pair<Double, Double?>>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(false) }
+
     val baseRange = 20.0
-    val xRange = baseRange / scale
+    val safeScale = scale.coerceIn(0.1f, 50f)
+
+    val xRange = baseRange / safeScale
     val xMin = -xRange + offsetX
     val xMax = xRange + offsetX
     val yOffset = offsetY.toDouble()
 
-    // Проверяем, есть ли 'y' в формуле, чтобы понять, по какой оси строить
-    val isVerticalAxis = viewModel.formula.contains("y")
+    val expression = viewModel.formula
 
-    val points = remember(viewModel.formula, scale, offsetX, offsetY) {
-        computePoints(
-            expression = viewModel.formula,
-            xMin = xMin,
-            xMax = xMax,
-            steps = 300,
-            nativeLib = nativeLib,
-            isVertical = isVerticalAxis
-        )
+    val parsedExpression = remember(expression) {
+        normalizeFormulaForGraph(expression)
+    }
+
+    val isVerticalAxis = remember(parsedExpression) {
+        parsedExpression.startsWith("x=") || parsedExpression.startsWith("x =")
+    }
+
+    LaunchedEffect(parsedExpression) {
+        isLoading = true
+
+        points = withContext(Dispatchers.Default) {
+            computePoints(
+                expression = parsedExpression,
+                xMin = -20.0,
+                xMax = 20.0,
+                steps = 240,
+                nativeLib = nativeLib,
+                isVertical = isVerticalAxis
+            )
+        }
+
+        isLoading = false
     }
 
     Scaffold(
@@ -69,7 +91,7 @@ fun GraphScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            "Back",
+                            contentDescription = "Back",
                             tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
@@ -97,30 +119,13 @@ fun GraphScreen(
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Text(
-                    text = if (isVerticalAxis) "x = f(y)" else "f(x) = ${viewModel.formula}",
+                    text = if (isVerticalAxis) "x = f(y)" else "f(x) = $expression",
                     modifier = Modifier.padding(16.dp),
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontWeight = FontWeight.Bold
+                    ),
                     color = MaterialTheme.colorScheme.onSurface
                 )
-            }
-
-            if (viewModel.result.isNotEmpty()) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 12.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
-                    ),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Text(
-                        text = "Результат: ${viewModel.result}",
-                        modifier = Modifier.padding(16.dp),
-                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                }
             }
 
             Card(
@@ -132,47 +137,64 @@ fun GraphScreen(
                 ),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                val textMeasurer = rememberTextMeasurer()
-                Canvas(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(8.dp)
-                        .pointerInput(Unit) {
-                            detectTransformGestures { _, pan, zoom, _ ->
-                                scale = (scale * zoom).coerceIn(0.1f, 50f)
-                                offsetX -= (pan.x / size.width * xRange * 2).toFloat()
-                                offsetY += (pan.y / size.height * xRange * 2).toFloat()
-                            }
-                        }
-                        // Поддержка зума колесиком для ПК
-                        .pointerInput(Unit) {
-                            awaitPointerEventScope {
-                                while (true) {
-                                    val event = awaitPointerEvent()
-                                    if (event.type == PointerEventType.Scroll) {
-                                        val delta = event.changes.first().scrollDelta.y
-                                        val zoomFactor = if (delta < 0) 1.1f else 0.9f
-                                        scale = (scale * zoomFactor).coerceIn(0.1f, 50f)
-                                    }
+                Box(modifier = Modifier.fillMaxSize()) {
+                    val textMeasurer = rememberTextMeasurer()
+
+                    Canvas(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(8.dp)
+                            .pointerInput(Unit) {
+                                detectTransformGestures { _, pan, zoom, _ ->
+                                    scale = (scale * zoom).coerceIn(0.1f, 50f)
+
+                                    val localXRange = baseRange / scale
+                                    offsetX -= (pan.x / size.width * localXRange * 2).toFloat()
+                                    offsetY += (pan.y / size.height * localXRange * 2).toFloat()
                                 }
                             }
-                        }
-                ) {
-                    drawGrid(xMin, xMax, yOffset, textMeasurer)
-                    drawGraph(points, xMin, xMax, yOffset)
+                    ) {
+                        drawGridSafe(
+                            xMin = xMin,
+                            xMax = xMax,
+                            yOffset = yOffset,
+                            textMeasurer = textMeasurer
+                        )
+
+                        drawGraphSafe(
+                            points = points,
+                            xMin = xMin,
+                            xMax = xMax,
+                            yOffset = yOffset
+                        )
+                    }
+
+                    if (isLoading) {
+                        LinearProgressIndicator(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .align(Alignment.TopCenter)
+                        )
+                    }
                 }
             }
 
             Text(
-                text = "Щипок/Колесико для зума • перетащи для панорамы",
+                text = "Щипок для зума • перетащи для панорамы",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                 modifier = Modifier.padding(top = 8.dp)
             )
 
             Button(
-                onClick = { scale = 1f; offsetX = 0f; offsetY = 0f },
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                onClick = {
+                    scale = 1f
+                    offsetX = 0f
+                    offsetY = 0f
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Text("Сбросить вид")
@@ -181,7 +203,38 @@ fun GraphScreen(
     }
 }
 
-private fun computePoints(
+private fun normalizeFormulaForGraph(formula: String): String {
+    var result = formula.replace(" ", "")
+
+    result = result
+        .replace(Regex("""\\ln\{\\left\((.*?)\\right\)([-+]\d+(?:\.\d+)?)\}""")) {
+            "ln(${it.groupValues[1]})${it.groupValues[2]}"
+        }
+        .replace(Regex("""\\sin\{\\left\((.*?)\\right\)([-+]\d+(?:\.\d+)?)\}""")) {
+            "sin(${it.groupValues[1]})${it.groupValues[2]}"
+        }
+        .replace(Regex("""\\cos\{\\left\((.*?)\\right\)([-+]\d+(?:\.\d+)?)\}""")) {
+            "cos(${it.groupValues[1]})${it.groupValues[2]}"
+        }
+
+    result = result
+        .replace("\\left", "")
+        .replace("\\right", "")
+        .replace("\\times", "*")
+        .replace("\\cdot", "*")
+        .replace("\\ln", "ln")
+        .replace("\\sin", "sin")
+        .replace("\\cos", "cos")
+        .replace("\\tan", "tan")
+        .replace("{", "(")
+        .replace("}", ")")
+
+    result = result.replace(Regex("""(\d)(x)"""), "$1*$2")
+
+    return result
+}
+
+private suspend fun computePoints(
     expression: String,
     xMin: Double,
     xMax: Double,
@@ -189,59 +242,247 @@ private fun computePoints(
     nativeLib: NativeLib,
     isVertical: Boolean
 ): List<Pair<Double, Double?>> {
+    if (expression.isBlank()) return emptyList()
+
     val result = mutableListOf<Pair<Double, Double?>>()
+    val xs = mutableListOf<Double>()
+
     val step = (xMax - xMin) / steps
-    var currentVal = xMin
 
-    while (currentVal <= xMax) {
-        val res = try {
-            // Передаем оригинальное выражение с переменной и отдельно её значение
-            val answer = nativeLib.calculateWithXNative(expression, currentVal.toString())
+    var currentX = xMin
+    var count = 0
 
-            // Если нативная библиотека вернула ошибку, записываем null
-            if (answer == "Error" || answer.isEmpty()) {
-                null
-            } else {
-                answer.toDoubleOrNull()
-            }
-        } catch (e: Exception) {
-            null
-        }
-
-        // Если строим по Y, результат функции — это X, а текущий шаг — это Y
-        if (isVertical) {
-            result.add(res?.let { it to currentVal } ?: (0.0 to null))
-        } else {
-            result.add(currentVal to res)
-        }
-
-        currentVal += step
+    while (count <= steps) {
+        xs.add(currentX)
+        currentX += step
+        count++
     }
+
+    findLnAsymptote(expression)?.let { asymptote ->
+        val epsilons = listOf(
+            1.0, 0.5, 0.2, 0.1, 0.05,
+            0.02, 0.01, 0.005, 0.001,
+            0.0005, 0.0001, 0.00001
+        )
+
+        for (eps in epsilons) {
+            val x = asymptote + eps
+            if (x in xMin..xMax) {
+                xs.add(x)
+            }
+        }
+    }
+
+    for (x in xs.sorted()) {
+        val fastResult = calculateFast(expression, x)
+
+        val yValue = when {
+            fastResult.recognized -> fastResult.value
+            else -> calculatePointByNative(nativeLib, expression, x)
+        }
+
+        if (isVertical) {
+            if (yValue != null && yValue.isFinite()) {
+                result.add(yValue to x)
+            } else {
+                result.add(0.0 to null)
+            }
+        } else {
+            result.add(x to yValue?.takeIf { it.isFinite() })
+        }
+    }
+
     return result
 }
 
-private fun niceStep(rawStep: Double): Double {
-    if (rawStep <= 0.0) return 1.0
-    val magnitude = 10.0.pow(floor(log10(rawStep)))
-    val normalized = rawStep / magnitude
-    return when {
-        normalized < 1.5 -> magnitude
-        normalized < 3.5 -> 2.0 * magnitude
-        normalized < 7.5 -> 5.0 * magnitude
-        else -> 10.0 * magnitude
+private fun findLnAsymptote(expression: String): Double? {
+    val match = Regex("""ln\((.*)\)([-+]\d+(?:\.\d+)?)?""")
+        .matchEntire(expression) ?: return null
+
+    val inside = match.groupValues[1].replace(" ", "")
+
+    val valueAtZero = evalSimpleLinear(inside, 0.0) ?: return null
+    val valueAtOne = evalSimpleLinear(inside, 1.0) ?: return null
+
+    val b = valueAtZero
+    val a = valueAtOne - valueAtZero
+
+    if (a == 0.0) return null
+
+    return -b / a
+}
+
+private data class FastResult(
+    val recognized: Boolean,
+    val value: Double?
+)
+
+private fun calculateFast(expression: String, x: Double): FastResult {
+    parseLinearLn(expression, x)?.let { return it }
+    parseLinearSin(expression, x)?.let { return it }
+    parseLinearCos(expression, x)?.let { return it }
+
+    return FastResult(false, null)
+}
+
+private fun parseLinearLn(expression: String, x: Double): FastResult? {
+    val match = Regex("""ln\((.*)\)([-+]\d+(?:\.\d+)?)?""")
+        .matchEntire(expression) ?: return null
+
+    val inside = evalSimpleLinear(match.groupValues[1], x)
+        ?: return FastResult(true, null)
+
+    val outside = match.groupValues
+        .getOrNull(2)
+        ?.takeIf { it.isNotBlank() }
+        ?.toDoubleOrNull() ?: 0.0
+
+    if (inside <= 0.0) {
+        return FastResult(true, null)
+    }
+
+    return FastResult(true, ln(inside) + outside)
+}
+
+private fun parseLinearSin(expression: String, x: Double): FastResult? {
+    val match = Regex("""sin\((.*)\)([-+]\d+(?:\.\d+)?)?""")
+        .matchEntire(expression) ?: return null
+
+    val inside = evalSimpleLinear(match.groupValues[1], x)
+        ?: return FastResult(true, null)
+
+    val outside = match.groupValues
+        .getOrNull(2)
+        ?.takeIf { it.isNotBlank() }
+        ?.toDoubleOrNull() ?: 0.0
+
+    return FastResult(true, sin(inside) + outside)
+}
+
+private fun parseLinearCos(expression: String, x: Double): FastResult? {
+    val match = Regex("""cos\((.*)\)([-+]\d+(?:\.\d+)?)?""")
+        .matchEntire(expression) ?: return null
+
+    val inside = evalSimpleLinear(match.groupValues[1], x)
+        ?: return FastResult(true, null)
+
+    val outside = match.groupValues
+        .getOrNull(2)
+        ?.takeIf { it.isNotBlank() }
+        ?.toDoubleOrNull() ?: 0.0
+
+    return FastResult(true, cos(inside) + outside)
+}
+
+private fun evalSimpleLinear(expr: String, x: Double): Double? {
+    return try {
+        val cleaned = expr
+            .replace(" ", "")
+            .replace("\\times", "*")
+            .replace("×", "*")
+
+        var result = 0.0
+        var i = 0
+
+        val normalized = if (cleaned.startsWith("-")) cleaned else "+$cleaned"
+
+        while (i < normalized.length) {
+            val sign = if (normalized[i] == '-') -1.0 else 1.0
+            i++
+
+            val start = i
+
+            while (i < normalized.length && normalized[i] != '+' && normalized[i] != '-') {
+                i++
+            }
+
+            val term = normalized.substring(start, i)
+
+            val value = when {
+                term == "x" -> x
+
+                term == "*x" -> x
+
+                term.contains("x") -> {
+                    val coefficient = term
+                        .replace("*x", "")
+                        .replace("x", "")
+
+                    val k = when (coefficient) {
+                        "", "+" -> 1.0
+                        "-" -> -1.0
+                        else -> coefficient.toDouble()
+                    }
+
+                    k * x
+                }
+
+                else -> term.toDouble()
+            }
+
+            result += sign * value
+        }
+
+        result
+    } catch (_: Throwable) {
+        null
     }
 }
 
-private fun DrawScope.drawGrid(xMin: Double, xMax: Double, yOffset: Double, textMeasurer: TextMeasurer) {
+private suspend fun calculatePointByNative(
+    nativeLib: NativeLib,
+    expression: String,
+    x: Double
+): Double? {
+    return try {
+        val answer = NativeSafe
+            .calculateWithX(
+                nativeLib = nativeLib,
+                formula = expression,
+                xValue = String.format(Locale.US, "%.4f", x)
+            )
+            .trim()
+
+        if (
+            answer.isBlank() ||
+            answer.contains("Ошибка", ignoreCase = true) ||
+            answer.contains("Error", ignoreCase = true) ||
+            answer.contains("nan", ignoreCase = true) ||
+            answer.contains("inf", ignoreCase = true) ||
+            answer.contains("Polynomial", ignoreCase = true)
+        ) {
+            null
+        } else {
+            answer.toDoubleOrNull()?.takeIf { it.isFinite() }
+        }
+    } catch (_: Throwable) {
+        null
+    }
+}
+
+private fun DrawScope.drawGridSafe(
+    xMin: Double,
+    xMax: Double,
+    yOffset: Double,
+    textMeasurer: TextMeasurer
+) {
     val w = size.width
     val h = size.height
+
+    if (w <= 0f || h <= 0f) return
+
     val xRange = xMax - xMin
+    if (xRange <= 0.0 || !xRange.isFinite()) return
+
     val yRange = xRange * (h / w)
     val yMin = -yRange / 2.0 + yOffset
     val yMax = yRange / 2.0 + yOffset
 
-    fun toScreenX(x: Double) = ((x - xMin) / xRange * w).toFloat()
-    fun toScreenY(y: Double) = (h - (y - yMin) / (yMax - yMin) * h).toFloat()
+    fun toScreenX(x: Double): Float =
+        ((x - xMin) / xRange * w).toFloat()
+
+    fun toScreenY(y: Double): Float =
+        (h - (y - yMin) / (yMax - yMin) * h).toFloat()
 
     val gridColor = Color.Gray.copy(alpha = 0.2f)
     val axisColor = Color.Gray.copy(alpha = 0.7f)
@@ -250,67 +491,176 @@ private fun DrawScope.drawGrid(xMin: Double, xMax: Double, yOffset: Double, text
     val step = niceStep(xRange / 10.0)
 
     var gx = floor(xMin / step) * step
-    while (gx <= xMax) {
+    var gxCount = 0
+
+    while (gx <= xMax && gxCount < 200) {
         val sx = toScreenX(gx)
-        drawLine(gridColor, Offset(sx, 0f), Offset(sx, h))
-        if (abs(gx) > step * 0.1) {
-            val label = if (abs(gx - gx.roundToInt()) < 0.001) gx.roundToInt().toString() else String.format("%.1f", gx)
-            val measured = textMeasurer.measure(AnnotatedString(label), style = TextStyle(fontSize = 10.sp, color = labelColor))
-            val labelY = (toScreenY(0.0) + 4f).coerceIn(4f, h - measured.size.height - 4f)
-            drawText(measured, topLeft = Offset(sx - measured.size.width / 2f, labelY))
+
+        if (sx.isFinite()) {
+            drawLine(gridColor, Offset(sx, 0f), Offset(sx, h))
         }
+
+        if (abs(gx) > step * 0.1) {
+            val measured = textMeasurer.measure(
+                AnnotatedString(formatLabel(gx)),
+                style = TextStyle(fontSize = 10.sp, color = labelColor)
+            )
+
+            val labelY = safeCoerce(
+                toScreenY(0.0) + 4f,
+                4f,
+                h - measured.size.height - 4f
+            )
+
+            drawText(
+                measured,
+                topLeft = Offset(sx - measured.size.width / 2f, labelY)
+            )
+        }
+
         gx += step
+        gxCount++
     }
 
     var gy = floor(yMin / step) * step
-    while (gy <= yMax) {
+    var gyCount = 0
+
+    while (gy <= yMax && gyCount < 200) {
         val sy = toScreenY(gy)
-        drawLine(gridColor, Offset(0f, sy), Offset(w, sy))
-        if (abs(gy) > step * 0.1) {
-            val label = if (abs(gy - gy.roundToInt()) < 0.001) gy.roundToInt().toString() else String.format("%.1f", gy)
-            val measured = textMeasurer.measure(AnnotatedString(label), style = TextStyle(fontSize = 10.sp, color = labelColor))
-            val labelX = (toScreenX(0.0) + 4f).coerceIn(4f, w - measured.size.width - 4f)
-            drawText(measured, topLeft = Offset(labelX, sy - measured.size.height / 2f))
+
+        if (sy.isFinite()) {
+            drawLine(gridColor, Offset(0f, sy), Offset(w, sy))
         }
+
+        if (abs(gy) > step * 0.1) {
+            val measured = textMeasurer.measure(
+                AnnotatedString(formatLabel(gy)),
+                style = TextStyle(fontSize = 10.sp, color = labelColor)
+            )
+
+            val labelX = safeCoerce(
+                toScreenX(0.0) + 4f,
+                4f,
+                w - measured.size.width - 4f
+            )
+
+            drawText(
+                measured,
+                topLeft = Offset(labelX, sy - measured.size.height / 2f)
+            )
+        }
+
         gy += step
+        gyCount++
     }
 
-    val axisY = toScreenY(0.0).coerceIn(0f, h)
+    val axisY = safeCoerce(toScreenY(0.0), 0f, h)
     drawLine(axisColor, Offset(0f, axisY), Offset(w, axisY), strokeWidth = 2f)
 
-    val axisX = toScreenX(0.0).coerceIn(0f, w)
+    val axisX = safeCoerce(toScreenX(0.0), 0f, w)
     drawLine(axisColor, Offset(axisX, 0f), Offset(axisX, h), strokeWidth = 2f)
 }
 
-private fun DrawScope.drawGraph(points: List<Pair<Double, Double?>>, xMin: Double, xMax: Double, yOffset: Double) {
+private fun DrawScope.drawGraphSafe(
+    points: List<Pair<Double, Double?>>,
+    xMin: Double,
+    xMax: Double,
+    yOffset: Double
+) {
     val w = size.width
     val h = size.height
+
+    if (w <= 0f || h <= 0f) return
+
     val xRange = xMax - xMin
+    if (xRange <= 0.0 || !xRange.isFinite()) return
+
     val yRange = xRange * (h / w)
     val yMin = -yRange / 2.0 + yOffset
     val yMax = yRange / 2.0 + yOffset
 
-    fun toScreenX(x: Double) = ((x - xMin) / xRange * w).toFloat()
-    fun toScreenY(y: Double) = (h - (y - yMin) / (yMax - yMin) * h).toFloat()
+    fun toScreenX(x: Double): Float =
+        ((x - xMin) / xRange * w).toFloat()
+
+    fun toScreenY(y: Double): Float =
+        (h - (y - yMin) / (yMax - yMin) * h).toFloat()
 
     val graphColor = Color(0xFF2196F3)
     val path = Path()
+
     var penDown = false
+    var previousY: Double? = null
 
     for ((x, y) in points) {
-        if (y == null || y.isNaN() || y.isInfinite() ||
-            y < yMin - yRange * 5 || y > yMax + yRange * 5) {
+        if (
+            y == null ||
+            !x.isFinite() ||
+            !y.isFinite() ||
+            y < yMin - yRange * 2 ||
+            y > yMax + yRange * 2
+        ) {
             penDown = false
+            previousY = null
             continue
         }
+
+        if (previousY != null && abs(y - previousY!!) > yRange) {
+            penDown = false
+            previousY = null
+        }
+
         val sx = toScreenX(x)
         val sy = toScreenY(y)
+
+        if (!sx.isFinite() || !sy.isFinite()) {
+            penDown = false
+            previousY = null
+            continue
+        }
+
         if (!penDown) {
             path.moveTo(sx, sy)
             penDown = true
         } else {
             path.lineTo(sx, sy)
         }
+
+        previousY = y
     }
+
     drawPath(path, graphColor, style = Stroke(width = 3f))
+}
+
+private fun niceStep(rawStep: Double): Double {
+    if (!rawStep.isFinite() || rawStep <= 0.0) return 1.0
+
+    val magnitude = 10.0.pow(floor(log10(rawStep)))
+    val normalized = rawStep / magnitude
+
+    return when {
+        normalized < 1.5 -> magnitude
+        normalized < 3.5 -> 2.0 * magnitude
+        normalized < 7.5 -> 5.0 * magnitude
+        else -> 10.0 * magnitude
+    }
+}
+
+private fun safeCoerce(value: Float, min: Float, max: Float): Float {
+    if (!value.isFinite()) return min
+
+    return if (max >= min) {
+        value.coerceIn(min, max)
+    } else {
+        min
+    }
+}
+
+private fun formatLabel(value: Double): String {
+    if (!value.isFinite()) return ""
+
+    return if (abs(value - value.roundToInt()) < 0.001) {
+        value.roundToInt().toString()
+    } else {
+        String.format(Locale.US, "%.1f", value)
+    }
 }

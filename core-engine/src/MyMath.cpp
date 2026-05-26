@@ -219,11 +219,11 @@ BigNumber BigNumber::factorial(BigNumber x) {
     }
 }
 BigNumber BigNumber::A(BigNumber x, BigNumber y) {
-    if (x.getSign()==0&&y.getSign()&&x.getPoint()==0&&y.getPoint()==0&&BigNumber{y-x-BigNumber{"1"}}.getSign()==1) return BigNumber{factorial(x)/(factorial(BigNumber{x-y}))};
+    if (x.getSign()==0&&y.getSign()==0 &&x.getPoint()==0&&y.getPoint()==0&&BigNumber{y-x-BigNumber{"1"}}.getSign()==1) return BigNumber{factorial(x)/(factorial(BigNumber{x-y}))};
     else return BigNumber{"42"};
 }
 BigNumber BigNumber::C(BigNumber x, BigNumber y) {
-    if (x.getSign()==0&&y.getSign()&&x.getPoint()==0&&y.getPoint()==0&&BigNumber{y-x-BigNumber{"1"}}.getSign()==1) return BigNumber{factorial(x)/(factorial(y)*factorial(BigNumber{x-y}))};
+    if (x.getSign()==0&&y.getSign()==0 &&x.getPoint()==0&&y.getPoint()==0&&BigNumber{y-x-BigNumber{"1"}}.getSign()==1) return BigNumber{factorial(x)/(factorial(y)*factorial(BigNumber{x-y}))};
     else return BigNumber{"42"};
 }
 Polynom Polynom::sin() {
