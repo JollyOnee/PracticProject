@@ -3,7 +3,6 @@ package org.infa252.project
 import android.graphics.Bitmap
 import android.util.Base64
 import io.ktor.client.*
-
 import io.ktor.client.engine.android.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
@@ -14,6 +13,7 @@ import kotlinx.serialization.json.*
 import java.io.ByteArrayOutputStream
 
 object GroqApiService {
+
     private const val API_KEY = "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"
     private const val MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
 
@@ -39,37 +39,40 @@ object GroqApiService {
                                 put("url", "data:image/jpeg;base64,$base64Image")
                             }
                         }
+
                         addJsonObject {
                             put("type", "text")
-                            put("text", """
-                           You are a mathematical OCR-to-LaTeX engine.
+                            put(
+                                "text",
+                                """
+                                You are a mathematical OCR-to-LaTeX engine.
 
-Rules:
-- Return ONLY valid LaTeX.
-- No explanations.
-- No markdown.
-- No code blocks.
-- No surrounding text.
-- Output exactly one mathematical expression.
-- Use standard LaTeX syntax compatible with KaTeX and MathJax.
-- Use \frac{}{} for fractions.
-- Use \sqrt{} for roots.
-- Use ^{} for powers.
-- Use _{} for subscripts.
-- Use \int_{a}^{b} ... \, dx for integrals.
-- Always wrap function arguments in parentheses: \sin(x), \cos(x), \ln(x)
-- Never use Unicode math symbols.
-- Never use dollar signs.
-- Never use \left or \right.
-- Preserve mathematical structure exactly.
-- Never use slash division (/).
-- ALWAYS represent division using \frac{}{}.
-- Every division must use explicit numerator and denominator braces.
-- Do not create unnecessary fractions.
-- If expression is unreadable, return: INVALID
+                                Return ONLY one LaTeX expression.
+                                No explanations.
+                                No markdown.
+                                No code blocks.
+                                No dollar signs.
+                                No surrounding text.
 
-
-                            """.trimIndent())
+                                Rules:
+                                - Use standard LaTeX.
+                                - Use \frac{}{} for fractions.
+                                - Use \sqrt{} for roots.
+                                - Use ^{} for powers.
+                                - Use _{} for subscripts.
+                                - Use \times for multiplication.
+                                - Use \int_{a}^{b} ... dx for integrals.
+                                - Do not use Unicode math symbols.
+                                - Do not use slash division (/).
+                                - Do not use \left or \right.
+                                - For functions return simple format:
+                                  \ln(3 \times x+1)-0.1
+                                  \sin(2 \times x+1)-0.5
+                                  \cos(3 \times x)
+                                  \tan(x)
+                                - If expression is unreadable, return INVALID
+                                """.trimIndent()
+                            )
                         }
                     }
                 }
@@ -77,28 +80,80 @@ Rules:
         }
 
         return try {
-            val response: HttpResponse = client.post("https://api.groq.com/openai/v1/chat/completions") {
-                header("Authorization", "Bearer $API_KEY")
-                contentType(ContentType.Application.Json)
-                setBody(requestBody.toString())
+            val response: HttpResponse =
+                client.post("https://api.groq.com/openai/v1/chat/completions") {
+                    header("Authorization", "Bearer $API_KEY")
+                    contentType(ContentType.Application.Json)
+                    setBody(requestBody.toString())
+                }
+
+            val body = response.bodyAsText()
+
+            if (!response.status.isSuccess()) {
+                return "Ошибка API: ${response.status.value}"
             }
-            val json = Json.parseToJsonElement(response.bodyAsText()).jsonObject
-            json["choices"]?.jsonArray
-                ?.firstOrNull()?.jsonObject
-                ?.get("message")?.jsonObject
-                ?.get("content")?.jsonPrimitive?.content
+
+            val json = Json.parseToJsonElement(body).jsonObject
+
+            val rawLatex = json["choices"]
+                ?.jsonArray
+                ?.firstOrNull()
+                ?.jsonObject
+                ?.get("message")
+                ?.jsonObject
+                ?.get("content")
+                ?.jsonPrimitive
+                ?.content
                 ?.trim()
-                ?.removePrefix("$")
-                ?.removeSuffix("$")
-                ?.removePrefix("\\(")
-                ?.removeSuffix("\\)")
-                ?.removePrefix("\\[")
-                ?.removeSuffix("\\]")
-                ?.replace("} dx", "}dx")  // убираем пробел перед dx
-                ?.replace(" dx", "dx")
-                ?.trim() ?: "Ошибка: пустой ответ"
+
+            if (rawLatex.isNullOrBlank()) {
+                return "Ошибка: пустой ответ"
+            }
+
+            normalizeScannerLatex(rawLatex)
+
         } catch (e: Exception) {
             "Ошибка: ${e.message}"
+        }
+    }
+
+    private fun normalizeScannerLatex(input: String): String {
+        var s = input.trim()
+
+        s = s
+            .removePrefix("$")
+            .removeSuffix("$")
+            .removePrefix("\\(")
+            .removeSuffix("\\)")
+            .removePrefix("\\[")
+            .removeSuffix("\\]")
+            .trim()
+
+        s = s.replace("} dx", "}dx")
+        s = s.replace(" dx", "dx")
+
+        s = s.replace(Regex("""(\d)\s*x"""), "$1 \\\\times x")
+
+        val functions = listOf("ln", "sin", "cos", "tan")
+
+        for (functionName in functions) {
+            s = normalizeFunction(s, functionName)
+        }
+
+        return s.trim()
+    }
+
+    private fun normalizeFunction(input: String, functionName: String): String {
+        val regex = Regex("""\\$functionName\s*\((.*?)\)(.*)$""")
+        val match = regex.find(input) ?: return input
+
+        val inside = match.groupValues[1].trim()
+        val after = match.groupValues[2].trim()
+
+        return if (after.isNotEmpty()) {
+            "\\$functionName{\\left($inside\\right)$after}"
+        } else {
+            "\\$functionName{\\left($inside\\right)}"
         }
     }
 
